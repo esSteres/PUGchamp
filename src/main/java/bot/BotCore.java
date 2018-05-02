@@ -2,11 +2,9 @@ package bot;
 
 import net.dv8tion.jda.core.JDA;
 import net.dv8tion.jda.core.entities.*;
-import net.dv8tion.jda.core.events.Event;
 import net.dv8tion.jda.core.events.ReadyEvent;
 import net.dv8tion.jda.core.events.guild.member.GuildMemberJoinEvent;
 import net.dv8tion.jda.core.events.message.MessageReceivedEvent;
-import net.dv8tion.jda.core.events.message.priv.PrivateMessageReceivedEvent;
 import net.dv8tion.jda.core.hooks.ListenerAdapter;
 import net.dv8tion.jda.core.managers.GuildController;
 
@@ -16,17 +14,14 @@ import java.time.format.DateTimeFormatter;
 import java.time.temporal.*;
 import java.util.*;
 
-//TODO: confirmation messages - Command property? in each? ???
-
 public class BotCore extends ListenerAdapter {
     private String prefix = "!";
     private String backupFile = "backup.txt";
-    private final String MOD_ID;
+    private String MOD_ID;
 
-    private LinkedHashMap<String, PUG> pugs;
     private LinkedHashMap<String, Command> commands;
-    private HashMap<User, ZoneId> timeZones;
-
+    private LinkedHashMap<String, PUG> pugs;
+    private LinkedHashMap<User, ZoneId> timeZones;
 
     BotCore(String announcementID, String NO_DM_ID, String MOD_ID) {
         this.MOD_ID = MOD_ID;
@@ -34,7 +29,7 @@ public class BotCore extends ListenerAdapter {
         this.commands = new LinkedHashMap<>();
 
         this.pugs = new LinkedHashMap<>();
-        this.timeZones = new HashMap<>();
+        this.timeZones = new LinkedHashMap<>();
 
         //START COMMAND DEFINITIONS:
         commands.put("create", new Command (true, true,
@@ -101,7 +96,7 @@ public class BotCore extends ListenerAdapter {
                 PUG pug = pugs.get(args.next());
                 if (args.hasNext()) {
                     Member newMod = message.getMessage().getMentionedMembers().get(0);
-                    if (this.verifyUser(newMod, MOD_ID)) {
+                    if (authenticate(message.getMember())) {
                         pug.changeMod(newMod.getUser());
                         return "PUG successfully transferred to " + newMod.getNickname() + ".";
                     } else {
@@ -341,7 +336,14 @@ public class BotCore extends ListenerAdapter {
         Scanner args = new Scanner(content.substring(prefix.length()));
         String command = args.next();
         if (this.commands.containsKey(command)) {
-            if (this.commands.get(command).execute(args, event, MOD_ID)) {
+            boolean backup;
+            if (event.getMember() != null) {
+                backup = this.commands.get(command).executeServerCommand(args, event,
+                        authenticate(event.getMember()));
+            } else {
+                backup = this.commands.get(command).executeDMCommand(args, event);
+            }
+            if (backup) {
                 this.backup();
             }
         }
@@ -367,7 +369,7 @@ public class BotCore extends ListenerAdapter {
         }
     }
 
-    void backup () {
+    private void backup () {
         try {
             File backup = new File(backupFile);
             ObjectOutputStream output = new ObjectOutputStream(new FileOutputStream(backup));
@@ -391,9 +393,9 @@ public class BotCore extends ListenerAdapter {
         }
     }
 
-    void readFromBackup (JDA api) throws Exception {
+    private void readFromBackup (JDA api) throws Exception {
         this.pugs = new LinkedHashMap<>();
-        this.timeZones = new HashMap<>();
+        this.timeZones = new LinkedHashMap<>();
 
         File backup = new File (backupFile);
         ObjectInputStream input = new ObjectInputStream(new FileInputStream(backup));
@@ -447,5 +449,14 @@ public class BotCore extends ListenerAdapter {
         }
 
         return zonedTime;
+    }
+
+    private boolean authenticate(Member user) {
+        for (Role role : user.getRoles()) {
+            if (role.getId().equals(MOD_ID)) {
+                return true;
+            }
+        }
+        return false;
     }
 }
