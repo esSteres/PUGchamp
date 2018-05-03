@@ -238,7 +238,7 @@ public class BotCore extends ListenerAdapter {
             }
         });
 
-        commands.put("DMs", new Command(false, false,
+        commands.put("dms", new Command(false, false,
                 "!DMs [on/off]",
                 "Adds or removes the @Don't DM me role to you.") {
             @Override
@@ -271,6 +271,15 @@ public class BotCore extends ListenerAdapter {
                 timeZones.put(message.getAuthor(), parseZone(args.next()));
                 return "Time zone registered successfully! Make sure you're using -DT instead of -ST during daylight " +
                         "savings if your'e in a country/state that uses it.";
+            }
+        });
+
+        commands.put("genji", new UserInfoCommand(false, false,
+                "!genji",
+                "Needs healing.") {
+            @Override
+            String processUser(Scanner args, User user) throws Exception {
+                return "I need healing!";
             }
         });
 
@@ -334,7 +343,7 @@ public class BotCore extends ListenerAdapter {
 
         // split up the message and process it
         Scanner args = new Scanner(content.substring(prefix.length()));
-        String command = args.next();
+        String command = args.next().toLowerCase();
         if (this.commands.containsKey(command)) {
             boolean backup;
             if (event.getMember() != null) {
