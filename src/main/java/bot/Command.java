@@ -1,5 +1,6 @@
 package bot;
 
+import net.dv8tion.jda.core.entities.Member;
 import net.dv8tion.jda.core.entities.Role;
 import net.dv8tion.jda.core.events.message.MessageReceivedEvent;
 
@@ -18,16 +19,15 @@ abstract class Command {
 
     //returns true if a mutating event occurred
     boolean execute (Scanner args, MessageReceivedEvent message, String modID) {
-        if (this.MOD_ONLY && !this.authenticate(message, modID)) {
-            message.getChannel().sendMessage("You don't have permission to do that.").queue();
-            return false;
-        }
-
         args.useDelimiter("\\s*,\\s*");
         args.skip("\\s*");
 
         ExceptingBiFunction<Scanner, MessageReceivedEvent, String> processor;
         if (message.getMember() != null) {
+            if (this.MOD_ONLY && !this.authenticate(message.getMember(), modID)) {
+                message.getChannel().sendMessage("You don't have permission to do that.").queue();
+                return false;
+            }
             processor = this::processServerMessage;
         } else {
             processor = this::processDM;
@@ -50,17 +50,13 @@ abstract class Command {
     }
 
 
-    boolean authenticate(MessageReceivedEvent event, String modID) {
-        if (event.getMember() == null) {
-            return false;
-        } else {
-            for (Role role : event.getMember().getRoles()) {
-                if (role.getId().equals(modID)) {
-                    return true;
-                }
+    boolean authenticate(Member user, String modID) {
+        for (Role role : user.getRoles()) {
+            if (role.getId().equals(modID)) {
+                return true;
             }
-            return false;
         }
+        return false;
     }
 
     //you better override at least one of these, or else your command is pretty much useless

@@ -7,10 +7,10 @@ import net.dv8tion.jda.core.entities.User;
 
 import java.io.Serializable;
 import java.time.ZonedDateTime;
-import java.util.ArrayList;
 import java.util.LinkedHashSet;
+import java.util.concurrent.ScheduledExecutorService;
 
-public class SerializablePUG implements Serializable {
+class SerializablePUG implements Serializable {
     private LinkedHashSet<String> players;
     private LinkedHashSet<String> watchers;
     private ZonedDateTime time;
@@ -18,10 +18,11 @@ public class SerializablePUG implements Serializable {
     private String mod;
     private String guild;
     private String name;
+    private int minutesWarning;
     private String identifier;
 
     SerializablePUG(LinkedHashSet<String> players, LinkedHashSet<String> watchers, ZonedDateTime time,
-                    String description, String mod, String guild, String name, String identifier) {
+                    String description, String mod, String guild, String name, int minutesWarning, String identifier) {
         this.players = players;
         this.watchers = watchers;
         this.time = time;
@@ -29,10 +30,11 @@ public class SerializablePUG implements Serializable {
         this.mod = mod;
         this.guild = guild;
         this.name = name;
+        this.minutesWarning = minutesWarning;
         this.identifier = identifier;
     }
 
-    PUG toPUG (JDA api) {
+    PUG toPUG (JDA api, ScheduledExecutorService reminderService) {
         LinkedHashSet<User> players = new LinkedHashSet<>();
         for (String uid: this.players) {
             players.add(api.getUserById(uid));
@@ -47,6 +49,6 @@ public class SerializablePUG implements Serializable {
         User mod = api.getUserById(this.mod);
 
         Role identifier = guild.getRoleById(this.identifier);
-        return new PUG(players, watchers, time, description, mod, guild, name, identifier);
+        return new PUG(players, watchers, time, description, mod, guild, name, minutesWarning, identifier, reminderService);
     }
 }

@@ -8,7 +8,7 @@ public class BotMain {
 
     public static void main (String... args) throws Exception {
         JDA api = new JDABuilder(AccountType.BOT).setToken(
-                "NDQwMDMwNzExOTYyMTQwNjcy.DcbySA.r6QtzUh0lSM-h2_E4bkvQHX-QEg"
+                "TOKEN"
         ).buildAsync();
 
         //testing core init values: "440032519518158848", "440032860720857090", "440032754131009536"

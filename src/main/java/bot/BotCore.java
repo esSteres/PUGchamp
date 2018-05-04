@@ -15,7 +15,6 @@ import java.time.temporal.*;
 import java.util.*;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.ScheduledThreadPoolExecutor;
 
 public class BotCore extends ListenerAdapter {
     private String prefix = "!";
@@ -62,8 +61,8 @@ public class BotCore extends ListenerAdapter {
 
                 Guild guild = message.getGuild();
 
-                pugs.put(pugName, new PUG(pugTime, pugDescription, message.getAuthor(), guild, pugName, announcementID,
-                        NO_DM_ID, reminderExecutor));
+                pugs.put(pugName, new PUG(pugTime, pugDescription, message.getAuthor(), guild, pugName, 5,
+                        announcementID, NO_DM_ID, reminderExecutor));
 
                 return "PUG created successfully.";
             }
@@ -103,7 +102,7 @@ public class BotCore extends ListenerAdapter {
                 PUG pug = pugs.get(args.next());
                 if (args.hasNext()) {
                     Member newMod = message.getMessage().getMentionedMembers().get(0);
-                    if (this.authenticate(message, MOD_ID)) {
+                    if (this.authenticate(newMod, MOD_ID)) {
                         pug.changeMod(newMod.getUser());
                         return "PUG successfully transferred to " + newMod.getNickname() + ".";
                     } else {
@@ -413,7 +412,7 @@ public class BotCore extends ListenerAdapter {
         try {
             LinkedHashMap<String, SerializablePUG> spugs = (LinkedHashMap<String, SerializablePUG>) input.readObject();
             for (Map.Entry<String, SerializablePUG> spug : spugs.entrySet()) {
-                this.pugs.put(spug.getKey(), spug.getValue().toPUG(api));
+                this.pugs.put(spug.getKey(), spug.getValue().toPUG(api, reminderExecutor));
             }
         } catch (Exception e) {}
 

@@ -19,15 +19,17 @@ class PUG {
     private User mod;
     private Guild guild;
     private String name;
+    private int minutesWarning;
     private Role identifier;
     private ScheduledFuture reminder;
 
-    PUG (ZonedDateTime time, String description, User mod, Guild guild, String name, String announcementID, String NO_DM_ID, ScheduledExecutorService reminderService) {
+    PUG (ZonedDateTime time, String description, User mod, Guild guild, String name, int minutesWarning, String announcementID, String NO_DM_ID, ScheduledExecutorService reminderService) {
         this.time = time;
         this.description = description;
         this.mod = mod;
         this.guild = guild;
         this.name = name;
+        this.minutesWarning = minutesWarning;
 
         this.players = new LinkedHashSet<>();
         this.watchers = new LinkedHashSet<>();
@@ -61,7 +63,7 @@ class PUG {
     }
 
     PUG(LinkedHashSet<User> players, LinkedHashSet<User> watchers, ZonedDateTime time, String description, User mod,
-               Guild guild, String name, Role identifier, ScheduledExecutorService reminderService) {
+               Guild guild, String name, int minutesWarning, Role identifier, ScheduledExecutorService reminderService) {
         this.players = players;
         this.watchers = watchers;
         this.time = time;
@@ -69,16 +71,22 @@ class PUG {
         this.mod = mod;
         this.guild = guild;
         this.name = name;
+        this.minutesWarning = minutesWarning;
         this.identifier = identifier;
         this.createReminder(reminderService);
     }
 
-    void createReminder(ScheduledExecutorService reminderService) {
+    private void createReminder(ScheduledExecutorService reminderService) {
         ZonedDateTime now = ZonedDateTime.now();
+        long secondsDifference = ChronoUnit.SECONDS.between(now,
+                time.withZoneSameInstant(now.getZone()).minusMinutes(minutesWarning));
+
         this.reminder = reminderService.schedule(() -> {
-            informAllOf(players, "The PUG you registered to play in, \"" + name + "\", is beginning in 5 minutes.");
-            informAllOf(watchers, "The PUG you registered to watch, \"" + name + "\", is beginning in 5 minutes.");
-        }, ChronoUnit.SECONDS.between(now, time.withZoneSameInstant(now.getZone())), TimeUnit.SECONDS);
+            informAllOf(players, "The PUG you registered to play in, \"" + name + "\", is beginning in " +
+                    minutesWarning + " minutes.");
+            informAllOf(watchers, "The PUG you registered to watch, \"" + name + "\", is beginning in " +
+                    minutesWarning + " minutes.");
+        }, secondsDifference, TimeUnit.SECONDS);
     }
 
     // effect: registers the given user as a player in this PUG
@@ -213,6 +221,6 @@ class PUG {
         String guildID = guild.getId();
         String identifierID = identifier.getId();
 
-        return new SerializablePUG(players, watchers, time, description, modID, guildID, name, identifierID);
+        return new SerializablePUG(players, watchers, time, description, modID, guildID, name, minutesWarning, identifierID);
     }
 }
