@@ -103,7 +103,7 @@ public class BotCore extends ListenerAdapter {
                 PUG pug = pugs.get(args.next());
                 if (args.hasNext()) {
                     Member newMod = message.getMessage().getMentionedMembers().get(0);
-                    if (authenticate(message.getMember())) {
+                    if (this.authenticate(message, MOD_ID)) {
                         pug.changeMod(newMod.getUser());
                         return "PUG successfully transferred to " + newMod.getNickname() + ".";
                     } else {
@@ -352,13 +352,7 @@ public class BotCore extends ListenerAdapter {
         Scanner args = new Scanner(content.substring(prefix.length()));
         String command = args.next().toLowerCase();
         if (this.commands.containsKey(command)) {
-            boolean backup;
-            if (event.getMember() != null) {
-                backup = this.commands.get(command).executeServerCommand(args, event,
-                        authenticate(event.getMember()));
-            } else {
-                backup = this.commands.get(command).executeDMCommand(args, event);
-            }
+            boolean backup = this.commands.get(command).execute(args, event, MOD_ID);
             if (backup) {
                 this.backup();
             }
@@ -465,14 +459,5 @@ public class BotCore extends ListenerAdapter {
         }
 
         return zonedTime;
-    }
-
-    private boolean authenticate(Member user) {
-        for (Role role : user.getRoles()) {
-            if (role.getId().equals(MOD_ID)) {
-                return true;
-            }
-        }
-        return false;
     }
 }
