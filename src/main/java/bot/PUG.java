@@ -5,8 +5,11 @@ import net.dv8tion.jda.core.entities.*;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
-import java.util.ArrayList;
+import java.time.temporal.ChronoUnit;
 import java.util.LinkedHashSet;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.TimeUnit;
 
 class PUG {
     private LinkedHashSet<User> players;
@@ -17,8 +20,9 @@ class PUG {
     private Guild guild;
     private String name;
     private Role identifier;
+    private ScheduledFuture reminder;
 
-    PUG (ZonedDateTime time, String description, User mod, Guild guild, String name, String announcementID, String NO_DM_ID) {
+    PUG (ZonedDateTime time, String description, User mod, Guild guild, String name, String announcementID, String NO_DM_ID, ScheduledExecutorService reminderService) {
         this.time = time;
         this.description = description;
         this.mod = mod;
@@ -32,6 +36,8 @@ class PUG {
 
         this.identifier = guild.getController().createRole().setName("[PUG] " + name).complete();
         guild.getController().addSingleRoleToMember(guild.getMember(mod), identifier).queue();
+
+        this.createReminder(reminderService);
 
         //announce in pug-pings
         guild.getTextChannelById(announcementID).sendMessage(
@@ -55,7 +61,7 @@ class PUG {
     }
 
     PUG(LinkedHashSet<User> players, LinkedHashSet<User> watchers, ZonedDateTime time, String description, User mod,
-               Guild guild, String name, Role identifier) {
+               Guild guild, String name, Role identifier, ScheduledExecutorService reminderService) {
         this.players = players;
         this.watchers = watchers;
         this.time = time;
@@ -64,6 +70,15 @@ class PUG {
         this.guild = guild;
         this.name = name;
         this.identifier = identifier;
+        this.createReminder(reminderService);
+    }
+
+    void createReminder(ScheduledExecutorService reminderService) {
+        ZonedDateTime now = ZonedDateTime.now();
+        this.reminder = reminderService.schedule(() -> {
+            informAllOf(players, "The PUG you registered to play in, \"" + name + "\", is beginning in 5 minutes.");
+            informAllOf(watchers, "The PUG you registered to watch, \"" + name + "\", is beginning in 5 minutes.");
+        }, ChronoUnit.SECONDS.between(now, time.withZoneSameInstant(now.getZone())), TimeUnit.SECONDS);
     }
 
     // effect: registers the given user as a player in this PUG
@@ -161,15 +176,20 @@ class PUG {
      *   - remind them they can "join" "watch" or "leave" the PUG via DMs
      * - via the designated [PUG]--pug name-- role
      */
-    void reschedule(ZonedDateTime newTime) {
+    void reschedule(ZonedDateTime newTime, ScheduledExecutorService rescheduleService) {
         this.time = newTime;
+        this.reminder.cancel(false);
+        this.createReminder(rescheduleService);
+
         this.informAllOf(players, "The PUG you are playing in, \"" + name + "\" has been rescheduled.\n" +
-                "Use !info " + name + " [your time zone] to see the new time in your time zone, and !watch " +
-                name + " or !leave " + name + " to update your status if this time no longer works for you.");
+                "Use !info " + name + " [your time zone (optional if you already registered a time zone)] to see " +
+                "the new time in your time zone, and !watch " + name + " or !leave " + name +
+                " to update your status if this time no longer works for you.");
 
         this.informAllOf(watchers, "The PUG you are watching, \"" + name + "\" has been rescheduled.\n" +
-                "Use !info " + name + " [your time zone] to see the new time in your time zone, and !join " +
-                name + " or !leave " + name + " to update your status if this new time changes your availability.");
+                "Use !info " + name + " [your time zone (optional if you already registered a time zone)] to see the " +
+                "new time in your time zone, and !join " + name + " or !leave " + name +
+                " to update your status if this new time changes your availability.");
     }
 
     private void informAllOf(LinkedHashSet<User> users, String notification) {

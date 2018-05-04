@@ -13,11 +13,16 @@ import java.time.*;
 import java.time.format.DateTimeFormatter;
 import java.time.temporal.*;
 import java.util.*;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledThreadPoolExecutor;
 
 public class BotCore extends ListenerAdapter {
     private String prefix = "!";
     private String backupFile = "backup.txt";
     private String MOD_ID;
+
+    private ScheduledExecutorService reminderExecutor;
 
     private LinkedHashMap<String, Command> commands;
     private LinkedHashMap<String, PUG> pugs;
@@ -25,6 +30,8 @@ public class BotCore extends ListenerAdapter {
 
     BotCore(String announcementID, String NO_DM_ID, String MOD_ID) {
         this.MOD_ID = MOD_ID;
+
+        this.reminderExecutor = Executors.newScheduledThreadPool(5);
 
         this.commands = new LinkedHashMap<>();
 
@@ -55,8 +62,8 @@ public class BotCore extends ListenerAdapter {
 
                 Guild guild = message.getGuild();
 
-                pugs.put(pugName, new PUG(pugTime, pugDescription, message.getAuthor(), guild, pugName, announcementID, NO_DM_ID));
-
+                pugs.put(pugName, new PUG(pugTime, pugDescription, message.getAuthor(), guild, pugName, announcementID,
+                        NO_DM_ID, reminderExecutor));
 
                 return "PUG created successfully.";
             }
@@ -82,7 +89,7 @@ public class BotCore extends ListenerAdapter {
                         "savings, because daylight savings is terrible. Register your time zone with !timezone") {
             @Override
             String processServerMessage(Scanner args, MessageReceivedEvent message) throws Exception {
-                pugs.get(args.next()).reschedule(parseTime(args.next(), message.getAuthor()));
+                pugs.get(args.next()).reschedule(parseTime(args.next(), message.getAuthor()), reminderExecutor);
                 return "PUG cancelled successfully";
             }
         });
