@@ -1,11 +1,9 @@
 package bot;
 
-import net.dv8tion.jda.core.entities.Member;
 import net.dv8tion.jda.core.entities.Role;
 import net.dv8tion.jda.core.events.message.MessageReceivedEvent;
 
 import java.util.Scanner;
-import java.util.function.BiFunction;
 
 abstract class Command {
     private final boolean MOD_ONLY;
@@ -18,24 +16,22 @@ abstract class Command {
         this.usage = template + "\n" + info;
     }
 
-    boolean executeServerCommand(Scanner args, MessageReceivedEvent message, boolean userAuthorized) {
-        if (MOD_ONLY && !userAuthorized) {
-            message.getMessage().getChannel().sendMessage("You don't have permission to do that").queue();
-            return false;
-        } else {
-            return this.execute(args, message, this::processServerMessage);
-        }
-    }
-
-    boolean executeDMCommand(Scanner args, MessageReceivedEvent message) {
-        return this.execute(args, message, this::processDM);
-    }
-
     //returns true if a mutating event occurred
-    boolean execute (Scanner args, MessageReceivedEvent message,
-                     ExceptingBiFunction<Scanner, MessageReceivedEvent, String> processor) {
+    boolean execute (Scanner args, MessageReceivedEvent message, String modID) {
+        if (this.MOD_ONLY && !this.authenticate(message, modID)) {
+            message.getChannel().sendMessage("You don't have permission to do that.").queue();
+            return false;
+        }
+
         args.useDelimiter("\\s*,\\s*");
         args.skip("\\s*");
+
+        ExceptingBiFunction<Scanner, MessageReceivedEvent, String> processor;
+        if (message.getMember() != null) {
+            processor = this::processServerMessage;
+        } else {
+            processor = this::processDM;
+        }
 
         try {
             String reply = processor.apply(args, message);
@@ -49,6 +45,20 @@ abstract class Command {
         } catch (Exception e) {
             message.getMessage().getChannel().sendMessage(this.getUsage()).queue();
             e.printStackTrace();
+            return false;
+        }
+    }
+
+
+    boolean authenticate(MessageReceivedEvent event, String modID) {
+        if (event.getMember() == null) {
+            return false;
+        } else {
+            for (Role role : event.getMember().getRoles()) {
+                if (role.getId().equals(modID)) {
+                    return true;
+                }
+            }
             return false;
         }
     }
