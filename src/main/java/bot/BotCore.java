@@ -269,8 +269,8 @@ public class BotCore extends ListenerAdapter {
             @Override
             String processServerMessage(Scanner args, MessageReceivedEvent message) throws Exception {
                 timeZones.put(message.getAuthor(), parseZone(args.next()));
-                return "Time zone registered successfully! Make sure you're using -DT instead of -ST during daylight " +
-                        "savings if your'e in a country/state that uses it.";
+                return "Time zone registered successfully! Make sure to use -DT instead of -ST during daylight " +
+                        "savings if you're in a country/state that uses it.";
             }
         });
 
