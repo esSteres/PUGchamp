@@ -8,7 +8,6 @@ import net.dv8tion.jda.core.entities.User;
 import java.io.Serializable;
 import java.time.ZonedDateTime;
 import java.util.LinkedHashSet;
-import java.util.concurrent.ScheduledExecutorService;
 
 class SerializablePUG implements Serializable {
     private LinkedHashSet<String> players;
@@ -34,7 +33,7 @@ class SerializablePUG implements Serializable {
         this.identifier = identifier;
     }
 
-    PUG toPUG (JDA api, ScheduledExecutorService reminderService) {
+    PUG toPUG (JDA api) {
         LinkedHashSet<User> players = new LinkedHashSet<>();
         for (String uid: this.players) {
             players.add(api.getUserById(uid));
@@ -49,6 +48,6 @@ class SerializablePUG implements Serializable {
         User mod = api.getUserById(this.mod);
 
         Role identifier = guild.getRoleById(this.identifier);
-        return new PUG(players, watchers, time, description, mod, guild, name, minutesWarning, identifier, reminderService);
+        return new PUG(players, watchers, time, description, mod, guild, name, minutesWarning, identifier);
     }
 }

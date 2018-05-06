@@ -7,6 +7,7 @@ import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
 import java.time.temporal.ChronoUnit;
 import java.util.LinkedHashSet;
+import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
@@ -23,7 +24,9 @@ class PUG {
     private Role identifier;
     private ScheduledFuture reminder;
 
-    PUG (ZonedDateTime time, String description, User mod, Guild guild, String name, int minutesWarning, String announcementID, String NO_DM_ID, ScheduledExecutorService reminderService) {
+    private static ScheduledExecutorService reminderService = Executors.newScheduledThreadPool(5);
+
+    PUG (ZonedDateTime time, String description, User mod, Guild guild, String name, int minutesWarning, String announcementID, String NO_DM_ID) {
         this.time = time;
         this.description = description;
         this.mod = mod;
@@ -39,7 +42,7 @@ class PUG {
         this.identifier = guild.getController().createRole().setName("[PUG] " + name).complete();
         guild.getController().addSingleRoleToMember(guild.getMember(mod), identifier).queue();
 
-        this.createReminder(reminderService);
+        this.createReminder();
 
         //announce in pug-pings
         guild.getTextChannelById(announcementID).sendMessage(
@@ -63,7 +66,7 @@ class PUG {
     }
 
     PUG(LinkedHashSet<User> players, LinkedHashSet<User> watchers, ZonedDateTime time, String description, User mod,
-               Guild guild, String name, int minutesWarning, Role identifier, ScheduledExecutorService reminderService) {
+               Guild guild, String name, int minutesWarning, Role identifier) {
         this.players = players;
         this.watchers = watchers;
         this.time = time;
@@ -73,10 +76,10 @@ class PUG {
         this.name = name;
         this.minutesWarning = minutesWarning;
         this.identifier = identifier;
-        this.createReminder(reminderService);
+        this.createReminder();
     }
 
-    private void createReminder(ScheduledExecutorService reminderService) {
+    private void createReminder() {
         ZonedDateTime now = ZonedDateTime.now();
         long secondsDifference = ChronoUnit.SECONDS.between(now,
                 time.withZoneSameInstant(now.getZone()).minusMinutes(minutesWarning));
@@ -184,10 +187,10 @@ class PUG {
      *   - remind them they can "join" "watch" or "leave" the PUG via DMs
      * - via the designated [PUG]--pug name-- role
      */
-    void reschedule(ZonedDateTime newTime, ScheduledExecutorService rescheduleService) {
+    void reschedule(ZonedDateTime newTime) {
         this.time = newTime;
         this.reminder.cancel(false);
-        this.createReminder(rescheduleService);
+        this.createReminder();
 
         this.informAllOf(players, "The PUG you are playing in, \"" + name + "\" has been rescheduled.\n" +
                 "Use !info " + name + " [your time zone (optional if you already registered a time zone)] to see " +

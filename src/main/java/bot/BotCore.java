@@ -13,15 +13,11 @@ import java.time.*;
 import java.time.format.DateTimeFormatter;
 import java.time.temporal.*;
 import java.util.*;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
 
 public class BotCore extends ListenerAdapter {
     private String prefix = "!";
     private String backupFile = "backup.txt";
     private String MOD_ID;
-
-    private ScheduledExecutorService reminderExecutor;
 
     private LinkedHashMap<String, Command> commands;
     private LinkedHashMap<String, PUG> pugs;
@@ -29,8 +25,6 @@ public class BotCore extends ListenerAdapter {
 
     BotCore(String announcementID, String NO_DM_ID, String MOD_ID) {
         this.MOD_ID = MOD_ID;
-
-        this.reminderExecutor = Executors.newScheduledThreadPool(5);
 
         this.commands = new LinkedHashMap<>();
 
@@ -62,7 +56,7 @@ public class BotCore extends ListenerAdapter {
                 Guild guild = message.getGuild();
 
                 pugs.put(pugName, new PUG(pugTime, pugDescription, message.getAuthor(), guild, pugName, 5,
-                        announcementID, NO_DM_ID, reminderExecutor));
+                        announcementID, NO_DM_ID));
 
                 return "PUG created successfully.";
             }
@@ -88,7 +82,7 @@ public class BotCore extends ListenerAdapter {
                         "savings, because daylight savings is terrible. Register your time zone with !timezone") {
             @Override
             String processServerMessage(Scanner args, MessageReceivedEvent message) throws Exception {
-                pugs.get(args.next()).reschedule(parseTime(args.next(), message.getAuthor()), reminderExecutor);
+                pugs.get(args.next()).reschedule(parseTime(args.next(), message.getAuthor()));
                 return "PUG cancelled successfully";
             }
         });
@@ -409,19 +403,15 @@ public class BotCore extends ListenerAdapter {
         File backup = new File (backupFile);
         ObjectInputStream input = new ObjectInputStream(new FileInputStream(backup));
 
-        try {
-            LinkedHashMap<String, SerializablePUG> spugs = (LinkedHashMap<String, SerializablePUG>) input.readObject();
-            for (Map.Entry<String, SerializablePUG> spug : spugs.entrySet()) {
-                this.pugs.put(spug.getKey(), spug.getValue().toPUG(api, reminderExecutor));
-            }
-        } catch (Exception e) {}
+        LinkedHashMap<String, SerializablePUG> spugs = (LinkedHashMap<String, SerializablePUG>) input.readObject();
+        for (Map.Entry<String, SerializablePUG> spug : spugs.entrySet()) {
+            this.pugs.put(spug.getKey(), spug.getValue().toPUG(api));
+        }
 
-        try {
-            LinkedHashMap<String, ZoneId> sTimeZones = (LinkedHashMap<String, ZoneId>) input.readObject();
-            for (Map.Entry<String, ZoneId> userEntry : sTimeZones.entrySet()) {
-                this.timeZones.put(api.getUserById(userEntry.getKey()), userEntry.getValue());
-            }
-        } catch (Exception e) {}
+        LinkedHashMap<String, ZoneId> sTimeZones = (LinkedHashMap<String, ZoneId>) input.readObject();
+        for (Map.Entry<String, ZoneId> userEntry : sTimeZones.entrySet()) {
+            this.timeZones.put(api.getUserById(userEntry.getKey()), userEntry.getValue());
+        }
 
         input.close();
     }
