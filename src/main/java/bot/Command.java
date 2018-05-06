@@ -5,7 +5,6 @@ import net.dv8tion.jda.core.entities.Role;
 import net.dv8tion.jda.core.events.message.MessageReceivedEvent;
 
 import java.util.Scanner;
-import java.util.function.BiFunction;
 
 abstract class Command {
     private final boolean MOD_ONLY;
@@ -18,24 +17,21 @@ abstract class Command {
         this.usage = template + "\n" + info;
     }
 
-    boolean executeServerCommand(Scanner args, MessageReceivedEvent message, boolean userAuthorized) {
-        if (MOD_ONLY && !userAuthorized) {
-            message.getMessage().getChannel().sendMessage("You don't have permission to do that").queue();
-            return false;
-        } else {
-            return this.execute(args, message, this::processServerMessage);
-        }
-    }
-
-    boolean executeDMCommand(Scanner args, MessageReceivedEvent message) {
-        return this.execute(args, message, this::processDM);
-    }
-
     //returns true if a mutating event occurred
-    boolean execute (Scanner args, MessageReceivedEvent message,
-                     ExceptingBiFunction<Scanner, MessageReceivedEvent, String> processor) {
+    boolean execute (Scanner args, MessageReceivedEvent message, String modID) {
         args.useDelimiter("\\s*,\\s*");
         args.skip("\\s*");
+
+        ExceptingBiFunction<Scanner, MessageReceivedEvent, String> processor;
+        if (message.getMember() != null) {
+            if (this.MOD_ONLY && !this.authenticate(message.getMember(), modID)) {
+                message.getChannel().sendMessage("You don't have permission to do that.").queue();
+                return false;
+            }
+            processor = this::processServerMessage;
+        } else {
+            processor = this::processDM;
+        }
 
         try {
             String reply = processor.apply(args, message);
@@ -51,6 +47,16 @@ abstract class Command {
             e.printStackTrace();
             return false;
         }
+    }
+
+
+    boolean authenticate(Member user, String modID) {
+        for (Role role : user.getRoles()) {
+            if (role.getId().equals(modID)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     //you better override at least one of these, or else your command is pretty much useless

@@ -55,8 +55,8 @@ public class BotCore extends ListenerAdapter {
 
                 Guild guild = message.getGuild();
 
-                pugs.put(pugName, new PUG(pugTime, pugDescription, message.getAuthor(), guild, pugName, announcementID, NO_DM_ID));
-
+                pugs.put(pugName, new PUG(pugTime, pugDescription, message.getAuthor(), guild, pugName, 5,
+                        announcementID, NO_DM_ID));
 
                 return "PUG created successfully.";
             }
@@ -96,7 +96,7 @@ public class BotCore extends ListenerAdapter {
                 PUG pug = pugs.get(args.next());
                 if (args.hasNext()) {
                     Member newMod = message.getMessage().getMentionedMembers().get(0);
-                    if (authenticate(message.getMember())) {
+                    if (this.authenticate(newMod, MOD_ID)) {
                         pug.changeMod(newMod.getUser());
                         return "PUG successfully transferred to " + newMod.getNickname() + ".";
                     } else {
@@ -345,13 +345,7 @@ public class BotCore extends ListenerAdapter {
         Scanner args = new Scanner(content.substring(prefix.length()));
         String command = args.next().toLowerCase();
         if (this.commands.containsKey(command)) {
-            boolean backup;
-            if (event.getMember() != null) {
-                backup = this.commands.get(command).executeServerCommand(args, event,
-                        authenticate(event.getMember()));
-            } else {
-                backup = this.commands.get(command).executeDMCommand(args, event);
-            }
+            boolean backup = this.commands.get(command).execute(args, event, MOD_ID);
             if (backup) {
                 this.backup();
             }
@@ -409,19 +403,15 @@ public class BotCore extends ListenerAdapter {
         File backup = new File (backupFile);
         ObjectInputStream input = new ObjectInputStream(new FileInputStream(backup));
 
-        try {
-            LinkedHashMap<String, SerializablePUG> spugs = (LinkedHashMap<String, SerializablePUG>) input.readObject();
-            for (Map.Entry<String, SerializablePUG> spug : spugs.entrySet()) {
-                this.pugs.put(spug.getKey(), spug.getValue().toPUG(api));
-            }
-        } catch (Exception e) {}
+        LinkedHashMap<String, SerializablePUG> spugs = (LinkedHashMap<String, SerializablePUG>) input.readObject();
+        for (Map.Entry<String, SerializablePUG> spug : spugs.entrySet()) {
+            this.pugs.put(spug.getKey(), spug.getValue().toPUG(api));
+        }
 
-        try {
-            LinkedHashMap<String, ZoneId> sTimeZones = (LinkedHashMap<String, ZoneId>) input.readObject();
-            for (Map.Entry<String, ZoneId> userEntry : sTimeZones.entrySet()) {
-                this.timeZones.put(api.getUserById(userEntry.getKey()), userEntry.getValue());
-            }
-        } catch (Exception e) {}
+        LinkedHashMap<String, ZoneId> sTimeZones = (LinkedHashMap<String, ZoneId>) input.readObject();
+        for (Map.Entry<String, ZoneId> userEntry : sTimeZones.entrySet()) {
+            this.timeZones.put(api.getUserById(userEntry.getKey()), userEntry.getValue());
+        }
 
         input.close();
     }
@@ -458,14 +448,5 @@ public class BotCore extends ListenerAdapter {
         }
 
         return zonedTime;
-    }
-
-    private boolean authenticate(Member user) {
-        for (Role role : user.getRoles()) {
-            if (role.getId().equals(MOD_ID)) {
-                return true;
-            }
-        }
-        return false;
     }
 }
