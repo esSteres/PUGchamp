@@ -357,7 +357,7 @@ public class BotCore extends ListenerAdapter {
 
     @Override
     public void onGuildMemberJoin (GuildMemberJoinEvent event) {
-        event.getGuild().getDefaultChannel().sendMessage("Hello, " + event.getUser().getAsMention() + ", Welcome to " +
+        event.getGuild().getSystemChannel().sendMessage("Hello, " + event.getUser().getAsMention() + ", Welcome to " +
                 "Spark's PUGs! Make sure to read the rules in #read-me-first before anything else. And feel free to " +
                 "message Spark or a Moderator to ask about PUGs! \n (Except DragonFire, He's only a mod because he " +
                 "writes and maintains me, beep boop.)").queue();
