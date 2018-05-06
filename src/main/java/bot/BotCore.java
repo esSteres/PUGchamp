@@ -55,8 +55,8 @@ public class BotCore extends ListenerAdapter {
 
                 Guild guild = message.getGuild();
 
-                pugs.put(pugName, new PUG(pugTime, pugDescription, message.getAuthor(), guild, pugName, announcementID, NO_DM_ID));
-
+                pugs.put(pugName, new PUG(pugTime, pugDescription, message.getAuthor(), guild, pugName, 5,
+                        announcementID, NO_DM_ID));
 
                 return "PUG created successfully.";
             }
@@ -96,7 +96,7 @@ public class BotCore extends ListenerAdapter {
                 PUG pug = pugs.get(args.next());
                 if (args.hasNext()) {
                     Member newMod = message.getMessage().getMentionedMembers().get(0);
-                    if (this.authenticate(message, MOD_ID)) {
+                    if (this.authenticate(newMod, MOD_ID)) {
                         pug.changeMod(newMod.getUser());
                         return "PUG successfully transferred to " + newMod.getNickname() + ".";
                     } else {
@@ -403,19 +403,15 @@ public class BotCore extends ListenerAdapter {
         File backup = new File (backupFile);
         ObjectInputStream input = new ObjectInputStream(new FileInputStream(backup));
 
-        try {
-            LinkedHashMap<String, SerializablePUG> spugs = (LinkedHashMap<String, SerializablePUG>) input.readObject();
-            for (Map.Entry<String, SerializablePUG> spug : spugs.entrySet()) {
-                this.pugs.put(spug.getKey(), spug.getValue().toPUG(api));
-            }
-        } catch (Exception e) {}
+        LinkedHashMap<String, SerializablePUG> spugs = (LinkedHashMap<String, SerializablePUG>) input.readObject();
+        for (Map.Entry<String, SerializablePUG> spug : spugs.entrySet()) {
+            this.pugs.put(spug.getKey(), spug.getValue().toPUG(api));
+        }
 
-        try {
-            LinkedHashMap<String, ZoneId> sTimeZones = (LinkedHashMap<String, ZoneId>) input.readObject();
-            for (Map.Entry<String, ZoneId> userEntry : sTimeZones.entrySet()) {
-                this.timeZones.put(api.getUserById(userEntry.getKey()), userEntry.getValue());
-            }
-        } catch (Exception e) {}
+        LinkedHashMap<String, ZoneId> sTimeZones = (LinkedHashMap<String, ZoneId>) input.readObject();
+        for (Map.Entry<String, ZoneId> userEntry : sTimeZones.entrySet()) {
+            this.timeZones.put(api.getUserById(userEntry.getKey()), userEntry.getValue());
+        }
 
         input.close();
     }
