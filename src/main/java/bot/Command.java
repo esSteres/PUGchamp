@@ -39,9 +39,6 @@ abstract class Command {
                 message.getChannel().sendMessage(reply).queue();
             }
             return MUTATOR;
-        } catch (IllegalCommandArgumentException e) {
-            message.getMessage().getChannel().sendMessage(e.getMessage()).queue();
-            return false;
         } catch (Exception e) {
             message.getMessage().getChannel().sendMessage(this.getUsage()).queue();
             e.printStackTrace();

@@ -43,7 +43,7 @@ public class BotCore extends ListenerAdapter {
                 String pugName = args.next();
 
                 if (pugs.containsKey(pugName)) {
-                    throw new IllegalCommandArgumentException("You cannot create a pug with the same name as an existing one.");
+                    return "You cannot create a pug with the same name as an existing one.";
                 }
 
                 ZonedDateTime pugTime = parseTime(args.next(), message.getAuthor());
@@ -100,7 +100,7 @@ public class BotCore extends ListenerAdapter {
                         pug.changeMod(newMod.getUser());
                         return "PUG successfully transferred to " + newMod.getNickname() + ".";
                     } else {
-                        throw new IllegalCommandArgumentException("New mod must be a moderator.");
+                        return "New mod must be a moderator.";
                     }
                 } else {
                     pug.changeMod(message.getAuthor());
@@ -191,6 +191,10 @@ public class BotCore extends ListenerAdapter {
                 ZoneId zone;
                 if (args.hasNext()) {
                     zone = parseZone(args.next());
+                    if (zone == null) {
+                        return "Incorrectly formatted time zone - remember to use the three-letter " +
+                                "version, I need to be able to distinguish between daylight and standard times.";
+                    }
                 } else {
                     zone = timeZones.get(message.getAuthor());
                 }
@@ -300,7 +304,7 @@ public class BotCore extends ListenerAdapter {
                     if (commands.containsKey(command) && commands.get(command).hidden() == revealModOnly) {
                         return commands.get(command).getUsage();
                     } else  {
-                        throw new IllegalCommandArgumentException("No command with that name!");
+                        return "No command with that name!";
                     }
                 } else {
                     String out = "Here is a list of all commands - use !" + (revealModOnly? "mod":"") +"help " +
@@ -357,7 +361,7 @@ public class BotCore extends ListenerAdapter {
 
     @Override
     public void onGuildMemberJoin (GuildMemberJoinEvent event) {
-        event.getGuild().getSystemChannel().sendMessage("Hello, " + event.getUser().getAsMention() + ", Welcome to " +
+        event.getGuild().getSystemChannel().sendMessage("Hello " + event.getUser().getAsMention() + ", Welcome to " +
                 "Spark's PUGs! Make sure to read the rules in #read-me-first before anything else. And feel free to " +
                 "message Spark or a Moderator to ask about PUGs! \n (Except DragonFire, He's only a mod because he " +
                 "writes and maintains me, beep boop.)").queue();
@@ -416,13 +420,12 @@ public class BotCore extends ListenerAdapter {
         input.close();
     }
 
-    private ZoneId parseZone (String zone) throws Exception {
+    private ZoneId parseZone (String zone) {
         try {
             DateTimeFormatter zoneIntake = DateTimeFormatter.ofPattern("z");
             return ZoneId.from(zoneIntake.parse(zone.toUpperCase()));
         } catch (Exception e) {
-            throw new IllegalCommandArgumentException("Incorrectly formatted time zone - remember to use the three-letter " +
-                    "version, I need to be able to distinguish between daylight and standard times.");
+            return null;
         }
     }
 
