@@ -42,7 +42,8 @@ public class BotCore extends ListenerAdapter {
                 String pugName = args.next();
 
                 if (pugs.containsKey(pugName)) {
-                    return "You cannot create a pug with the same name as an existing one.";
+                    throw new IllegalCommandArgumentException("You cannot create a pug with the same name as an " +
+                            "existing one.");
                 }
 
                 ZonedDateTime pugTime = parseTime(args.next(), message.getAuthor());
@@ -67,9 +68,9 @@ public class BotCore extends ListenerAdapter {
                 "Deletes the named PUG and informs its players and watchers of the cancellation. This action is " +
                         "irreversible and currently does not ask \"Are you sure?\" or anything, so be careful.") {
             @Override
-            String processServerMessage(Scanner args, MessageReceivedEvent message) throws Exception {
-                pugs.remove(args.next()).cancel();
-                return "PUG cancelled successfully.";
+            String processServerMessage (Scanner args, MessageReceivedEvent message) throws Exception {
+                pugs.remove(getPugName(args)).cancel();
+                return "PUG successfully canceled.";
             }
         });
 
@@ -81,7 +82,8 @@ public class BotCore extends ListenerAdapter {
                         "off, defaults to this year. Register your time zone with !timezone.") {
             @Override
             String processServerMessage(Scanner args, MessageReceivedEvent message) throws Exception {
-                pugs.get(args.next()).reschedule(parseTime(args.next(), message.getAuthor()));
+                String pugName = getPugName(args);
+                pugs.get(pugName).reschedule(parseTime(args.next(), message.getAuthor()));
                 return "PUG rescheduled successfully";
             }
         });
@@ -92,14 +94,14 @@ public class BotCore extends ListenerAdapter {
                         "The user must themselves be a mod.") {
             @Override
             String processServerMessage(Scanner args, MessageReceivedEvent message) throws Exception {
-                PUG pug = pugs.get(args.next());
+                PUG pug = pugs.get(getPugName(args));
                 if (args.hasNext()) {
                     Member newMod = message.getMessage().getMentionedMembers().get(0);
                     if (this.authenticate(newMod, MOD_ID)) {
                         pug.changeMod(newMod.getUser());
                         return "PUG successfully transferred to " + newMod.getEffectiveName() + ".";
                     } else {
-                        return "New mod must be a moderator.";
+                        throw new IllegalCommandArgumentException("New mod must be a moderator.");
                     }
                 } else {
                     pug.changeMod(message.getAuthor());
@@ -114,7 +116,7 @@ public class BotCore extends ListenerAdapter {
                         "but more functionality will be added in the future, hopefully.") {
             @Override
             String processServerMessage(Scanner args, MessageReceivedEvent message) throws Exception {
-                pugs.remove(args.next()).close();
+                pugs.remove(getPugName(args)).close();
                 return "PUG successfully closed. Thank you for using PUGchamp!";
             }
         });
@@ -127,7 +129,7 @@ public class BotCore extends ListenerAdapter {
                         "currently a player in the pug, you will no longer be one.") {
             @Override
             String processUser(Scanner args, User user) throws Exception {
-                String pugName = args.next();
+                String pugName = getPugName(args);
                 pugs.get(pugName).registerWatcher(user);
                 return "You are now watching " + pugName;
             }
@@ -139,7 +141,7 @@ public class BotCore extends ListenerAdapter {
                         "be one.") {
             @Override
             String processUser(Scanner args, User user) throws Exception {
-                String pugName = args.next();
+                String pugName = getPugName(args);
                 pugs.get(pugName).registerPlayer(user);
                 return "You are now playing in " + pugName;
             }
@@ -152,7 +154,7 @@ public class BotCore extends ListenerAdapter {
             String processServerMessage(Scanner args, MessageReceivedEvent message) throws Exception {
                 Member player = message.getMessage().getMentionedMembers().get(0);
                 args.next();
-                pugs.get(args.next()).registerPlayer(player.getUser());
+                pugs.get(getPugName(args)).registerPlayer(player.getUser());
                 return "Player added successfully.";
             }
         });
@@ -163,7 +165,7 @@ public class BotCore extends ListenerAdapter {
                         "the required 12 players if you were a player.") {
             @Override
             String processUser(Scanner args, User user) throws Exception {
-                pugs.get(args.next()).removePlayer(user);
+                pugs.get(getPugName(args)).removePlayer(user);
                 return "Left PUG successfully.";
             }
         });
@@ -175,7 +177,7 @@ public class BotCore extends ListenerAdapter {
             String processServerMessage(Scanner args, MessageReceivedEvent message) throws Exception {
                 Member player = message.getMessage().getMentionedMembers().get(0);
                 args.next();
-                pugs.get(args.next()).removePlayer(player.getUser());
+                pugs.get(getPugName(args)).removePlayer(player.getUser());
                 return "Player removed successfully.";
             }
         });
@@ -191,8 +193,9 @@ public class BotCore extends ListenerAdapter {
                 if (args.hasNext()) {
                     zone = parseZone(args.next());
                     if (zone == null) {
-                        return "Incorrectly formatted time zone - remember to use the three-letter " +
-                                "version, I need to be able to distinguish between daylight and standard times.";
+                        throw new IllegalCommandArgumentException("Incorrectly formatted time zone - remember to use " +
+                                "the three-letter version, I need to be able to distinguish between daylight and " +
+                                "standard times.");
                     }
                 } else {
                     zone = timeZones.get(message.getAuthor());
@@ -212,7 +215,7 @@ public class BotCore extends ListenerAdapter {
                         "more detailed than the data from !list") {
             @Override
             String processUser(Scanner args, User user) throws Exception {
-                String pug = args.next();
+                String pug = getPugName(args);
                 String out = "Info for " + pug + ":\n";
                 if (args.hasNext()) {
                     out += pugs.get(pug).fullInfo(parseZone(args.next()));
@@ -228,7 +231,7 @@ public class BotCore extends ListenerAdapter {
                 "Returns a list of people playing in named PUG.") {
             @Override
             String processUser(Scanner args, User u) throws Exception {
-                return pugs.get(args.next()).playerList();
+                return pugs.get(getPugName(args)).playerList();
             }
         });
 
@@ -237,7 +240,7 @@ public class BotCore extends ListenerAdapter {
                 "Returns a list of people watching the named PUG.") {
             @Override
             String processUser(Scanner args, User u) throws Exception {
-                return pugs.get(args.next()).watcherList();
+                return pugs.get(getPugName(args)).watcherList();
             }
         });
 
@@ -278,8 +281,13 @@ public class BotCore extends ListenerAdapter {
                             "savings if you're in a country/state that uses it.";
                 } else {
                     DateTimeFormatter formatter = DateTimeFormatter.ofPattern("z");
-                    String zone = formatter.format(ZonedDateTime.now().withZoneSameLocal(timeZones.get(message.getAuthor())));
-                    return "Your time zone is currently " + zone;
+                    if (timeZones.containsKey(message.getAuthor())) {
+                        String zone = formatter.format(ZonedDateTime.now().withZoneSameLocal(
+                                timeZones.get(message.getAuthor())));
+                        return "Your time zone is currently " + zone;
+                    } else {
+                        return "You don't have a time zone registered. Do so now! It'll be helpful, trust me.";
+                    }
                 }
             }
         });
@@ -458,5 +466,14 @@ public class BotCore extends ListenerAdapter {
         }
 
         return zonedTime;
+    }
+
+    private String getPugName(Scanner args) throws Exception{
+        String pugName = args.next();
+        if (pugs.containsKey(pugName)) {
+            return pugName;
+        } else {
+            throw new IllegalCommandArgumentException("No PUG with that name.");
+        }
     }
 }
