@@ -14,7 +14,10 @@ abstract class Command {
     Command(boolean MOD_ONLY, boolean MUTATOR,  String template, String info) {
         this.MOD_ONLY = MOD_ONLY;
         this.MUTATOR = MUTATOR;
-        this.usage = template + "\n" + info;
+        if (template.contains(",")) {
+            template += "\n(note that arguments are separated by commas)";
+        }
+        this.usage = "Usage: " + template + "\n" + info;
     }
 
     //returns true if a mutating event occurred
@@ -66,7 +69,7 @@ abstract class Command {
     }
 
     String getUsage() {
-        return "Usage: " + this.usage;
+        return this.usage;
     }
 
     boolean hidden() {

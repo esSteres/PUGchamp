@@ -36,8 +36,7 @@ public class BotCore extends ListenerAdapter {
                 "!create [PUG name], [time], [optional: description]",
                 "Creates a pug at the given time. Time should be in the format HH:MM [am/pm] [Time Zone (optional " +
                         "if you already registered a time zone)] [optional: MM-DD-YYYY]. Date defaults to today if none " +
-                        "present. Year may be left off, defaults to this year. Remember to use the correct time zone " +
-                        "during daylight savings, because daylight savings is terrible. Register your time zone with !timezone.") {
+                        "present. Year may be left off, defaults to this year. Register your time zone with !timezone.") {
             @Override
             String processServerMessage(Scanner args, MessageReceivedEvent message) throws Exception {
                 String pugName = args.next();
@@ -50,7 +49,8 @@ public class BotCore extends ListenerAdapter {
 
                 String pugDescription = "";
                 if (args.hasNext()) {
-                    pugDescription = args.next();
+                    args.skip("\\s*,\\s*");
+                    pugDescription = args.nextLine();
                 }
 
                 Guild guild = message.getGuild();
@@ -78,12 +78,11 @@ public class BotCore extends ListenerAdapter {
                 "Changes named pug to occur at given time. Informs all players and watchers of the change." +
                         "Time should be in the format HH:MM [am/pm] [Time Zone (optional if you already registered a " +
                         "time zone)] [optional: MM-DD-YYYY]. Date defaults to today if none present. Year may be left " +
-                        "off, defaults to this year. Remember to use the correct time zone during daylight " +
-                        "savings, because daylight savings is terrible. Register your time zone with !timezone") {
+                        "off, defaults to this year. Register your time zone with !timezone.") {
             @Override
             String processServerMessage(Scanner args, MessageReceivedEvent message) throws Exception {
                 pugs.get(args.next()).reschedule(parseTime(args.next(), message.getAuthor()));
-                return "PUG cancelled successfully";
+                return "PUG rescheduled successfully";
             }
         });
 
@@ -98,13 +97,13 @@ public class BotCore extends ListenerAdapter {
                     Member newMod = message.getMessage().getMentionedMembers().get(0);
                     if (this.authenticate(newMod, MOD_ID)) {
                         pug.changeMod(newMod.getUser());
-                        return "PUG successfully transferred to " + newMod.getNickname() + ".";
+                        return "PUG successfully transferred to " + newMod.getEffectiveName() + ".";
                     } else {
                         return "New mod must be a moderator.";
                     }
                 } else {
                     pug.changeMod(message.getAuthor());
-                    return "PUG successfully transferred to " + message.getMember().getNickname() + ".";
+                    return "PUG successfully transferred to " + message.getMember().getEffectiveName() + ".";
                 }
             }
         });
@@ -269,12 +268,19 @@ public class BotCore extends ListenerAdapter {
         commands.put("timezone", new Command(false, true,
                 "!timezone [time zone]",
                 "registers your time zone as the given time zone. Any commands that involve time will use the " +
-                        "registered time zone if none is specified.") {
+                        "registered time zone if none is specified. !timezone on its own will display your currently " +
+                        "registered time zone, if you have one.") {
             @Override
             String processServerMessage(Scanner args, MessageReceivedEvent message) throws Exception {
-                timeZones.put(message.getAuthor(), parseZone(args.next()));
-                return "Time zone registered successfully! Make sure to use -DT instead of -ST during daylight " +
-                        "savings if you're in a country/state that uses it.";
+                if (args.hasNext()) {
+                    timeZones.put(message.getAuthor(), parseZone(args.next()));
+                    return "Time zone registered successfully! Make sure to use -DT instead of -ST during daylight " +
+                            "savings if you're in a country/state that uses it.";
+                } else {
+                    DateTimeFormatter formatter = DateTimeFormatter.ofPattern("z");
+                    String zone = formatter.format(ZonedDateTime.now().withZoneSameLocal(timeZones.get(message.getAuthor())));
+                    return "Your time zone is currently " + zone;
+                }
             }
         });
 
@@ -308,7 +314,7 @@ public class BotCore extends ListenerAdapter {
                     }
                 } else {
                     String out = "Here is a list of all commands - use !" + (revealModOnly? "mod":"") +"help " +
-                            "[command name] for usage";
+                            "[command name] for usage.";
                     for (Map.Entry<String, Command> entry : commands.entrySet()) {
                         if (entry.getValue().hidden() == revealModOnly) {
                             out += "\n - " + entry.getKey();
@@ -363,8 +369,9 @@ public class BotCore extends ListenerAdapter {
     public void onGuildMemberJoin (GuildMemberJoinEvent event) {
         event.getGuild().getSystemChannel().sendMessage("Hello " + event.getUser().getAsMention() + ", Welcome to " +
                 "Spark's PUGs! Make sure to read the rules in #read-me-first before anything else. And feel free to " +
-                "message Spark or a Moderator to ask about PUGs! \n (Except DragonFire, He's only a mod because he " +
-                "writes and maintains me, beep boop.)").queue();
+                "message Spark or a Moderator to ask about PUGs! \n(Except DragonFire, He's only a mod because he " +
+                "writes and maintains me, beep boop.) \nIf you want to learn more about how to properly use me, the " +
+                "!help command will provide information on my functionality.").queue();
     }
 
     @Override

@@ -84,12 +84,14 @@ class PUG {
         long secondsDifference = ChronoUnit.SECONDS.between(now,
                 time.withZoneSameInstant(now.getZone()).minusMinutes(minutesWarning));
 
-        this.reminder = reminderService.schedule(() -> {
-            informAllOf(players, "The PUG you registered to play in, \"" + name + "\", is beginning in " +
-                    minutesWarning + " minutes.");
-            informAllOf(watchers, "The PUG you registered to watch, \"" + name + "\", is beginning in " +
-                    minutesWarning + " minutes.");
-        }, secondsDifference, TimeUnit.SECONDS);
+        if (secondsDifference > 0) {
+            this.reminder = reminderService.schedule(() -> {
+                informAllOf(players, "The PUG you registered to play in, \"" + name + "\", is beginning in " +
+                        minutesWarning + " minutes.");
+                informAllOf(watchers, "The PUG you registered to watch, \"" + name + "\", is beginning in " +
+                        minutesWarning + " minutes.");
+            }, secondsDifference, TimeUnit.SECONDS);
+        }
     }
 
     // effect: registers the given user as a player in this PUG
@@ -154,7 +156,7 @@ class PUG {
     String playerList() {
         String out = "Here is everyone playing in this PUG:";
         for (User u : players) {
-            out += "\n - " + guild.getMember(u).getNickname();
+            out += "\n - " + guild.getMember(u).getEffectiveName();
         }
         return out;
     }
@@ -162,7 +164,7 @@ class PUG {
     String watcherList() {
         String out = "Here is everyone watching this PUG:";
         for (User u : watchers) {
-            out += "\n - " + guild.getMember(u).getNickname();
+            out += "\n - " + guild.getMember(u).getEffectiveName();
         }
         return out;
     }
@@ -189,7 +191,9 @@ class PUG {
      */
     void reschedule(ZonedDateTime newTime) {
         this.time = newTime;
-        this.reminder.cancel(false);
+        if (this.reminder != null) {
+            this.reminder.cancel(false);
+        }
         this.createReminder();
 
         this.informAllOf(players, "The PUG you are playing in, \"" + name + "\" has been rescheduled.\n" +
