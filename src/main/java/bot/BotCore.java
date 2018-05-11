@@ -189,17 +189,7 @@ public class BotCore extends ListenerAdapter {
             @Override
             String processServerMessage(Scanner args, MessageReceivedEvent message) throws Exception {
                 String list = "Here are the currently active PUGs:\n";
-                ZoneId zone;
-                if (args.hasNext()) {
-                    zone = parseZone(args.next());
-                    if (zone == null) {
-                        throw new IllegalCommandArgumentException("Incorrectly formatted time zone - remember to use " +
-                                "the three-letter version, I need to be able to distinguish between daylight and " +
-                                "standard times.");
-                    }
-                } else {
-                    zone = timeZones.get(message.getAuthor());
-                }
+                ZoneId zone = getZone(message.getAuthor(), args);
 
                 for (Map.Entry<String, PUG> entry : pugs.entrySet()) {
                     list += entry.getKey() + ": " + entry.getValue().briefInfo(zone) + "\n";
@@ -217,11 +207,7 @@ public class BotCore extends ListenerAdapter {
             String processUser(Scanner args, User user) throws Exception {
                 String pug = getPugName(args);
                 String out = "Info for " + pug + ":\n";
-                if (args.hasNext()) {
-                    out += pugs.get(pug).fullInfo(parseZone(args.next()));
-                } else {
-                    out += pugs.get(pug).fullInfo(timeZones.get(user));
-                }
+                out += pugs.get(pug).fullInfo(getZone(user, args));
                 return out;
             }
         });
@@ -435,12 +421,14 @@ public class BotCore extends ListenerAdapter {
         input.close();
     }
 
-    private ZoneId parseZone (String zone) {
+    private ZoneId parseZone (String zone) throws Exception{
         try {
             DateTimeFormatter zoneIntake = DateTimeFormatter.ofPattern("z");
             return ZoneId.from(zoneIntake.parse(zone.toUpperCase()));
         } catch (Exception e) {
-            return null;
+            throw new IllegalCommandArgumentException("Incorrectly formatted time zone - remember to use " +
+                    "the three-letter version, I need to be able to distinguish between daylight and " +
+                    "standard times.");
         }
     }
 
@@ -452,7 +440,11 @@ public class BotCore extends ListenerAdapter {
         if (parsedTime.isSupported(ChronoField.OFFSET_SECONDS)) {
             zone = ZoneId.from(parsedTime);
         } else {
-            zone =  timeZones.get(u);
+            if (timeZones.containsKey(u)) {
+                zone =  timeZones.get(u);
+            } else {
+                throw new IllegalCommandArgumentException("No time zone found - register one now with !timezone.");
+            }
         }
 
         ZonedDateTime zonedTime = ZonedDateTime.of(LocalDate.now(), LocalTime.from(parsedTime), zone);
@@ -474,6 +466,18 @@ public class BotCore extends ListenerAdapter {
             return pugName;
         } else {
             throw new IllegalCommandArgumentException("No PUG with that name.");
+        }
+    }
+
+    private ZoneId getZone (User user, Scanner args) throws Exception {
+        if (args.hasNext()) {
+            return parseZone(args.next());
+        } else {
+            if (timeZones.containsKey(user)) {
+                return timeZones.get(user);
+            } else {
+                throw new IllegalCommandArgumentException("No time zone found - register one now with !timezone.");
+            }
         }
     }
 }
