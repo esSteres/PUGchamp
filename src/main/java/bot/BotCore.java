@@ -191,8 +191,8 @@ public class BotCore extends ListenerAdapter {
                 String list = "Here are the currently active PUGs:\n";
                 ZoneId zone = getZone(message.getAuthor(), args);
 
-                for (Map.Entry<String, PUG> entry : pugs.entrySet()) {
-                    list += entry.getKey() + ": " + entry.getValue().briefInfo(zone) + "\n";
+                for (PUG pug : pugs.values()) {
+                    list += pug.briefInfo(zone) + "\n";
                 }
 
                 return list;
@@ -206,9 +206,7 @@ public class BotCore extends ListenerAdapter {
             @Override
             String processUser(Scanner args, User user) throws Exception {
                 String pug = getPugName(args);
-                String out = "Info for " + pug + ":\n";
-                out += pugs.get(pug).fullInfo(getZone(user, args));
-                return out;
+                return pugs.get(pug).fullInfo(getZone(user, args));
             }
         });
 

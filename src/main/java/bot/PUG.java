@@ -59,7 +59,8 @@ class PUG {
                         "A new PUG, \"" + name + "\", has been created. Use !info " + name + ", " +
                                 "[your time zone(optional if you already registered a time zone)] to get " +
                                 "information and timing in your time zone, and !join " + name +
-                                " or !watch " + name + " to register as a player or watcher."
+                                " or !watch " + name + " to register as a player or watcher. You can tun these messages " +
+                                "off by typing !dms off in any channel in Spark's Pugs."
                 ).queue());
             }
         }
@@ -133,18 +134,19 @@ class PUG {
     // returns a string that quickly describes this pug, hopefully nicely formatted
     // (for !list)
     String briefInfo(ZoneId zone) {
-        return " Mod: " + this.mod.getName() + ", Time: " + this.formatTime(zone) +
+        return this.name + ":\nMod: " + this.mod.getName() + ", Time: " + this.formatTime(zone) +
                 ", Players: " + this.players.size() + ".";
     }
 
     // returns a string that describes this pug, hopefully nicely formatted
     //  (for !info)
     String fullInfo(ZoneId zone) {
-        return "Mod: " + this.mod.getName() + "\n" +
+        return "Info for " + this.name + ":\n" +
+                "Mod: " + this.mod.getName() + "\n" +
                 "Time: " + this.formatTime(zone) + "\n" +
                 "Players: " + this.players.size() + " of 12\n" +
                 "Watchers: " + this.watchers.size() + "\n" +
-                "Description: " + this.description;
+                "Description:\n" + this.description;
     }
 
     private String formatTime(ZoneId zone) {
