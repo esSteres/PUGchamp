@@ -26,7 +26,7 @@ class PUG {
 
     private static ScheduledExecutorService reminderService = Executors.newScheduledThreadPool(5);
 
-    PUG (ZonedDateTime time, String description, User mod, Guild guild, String name, int minutesWarning, String announcementID, String NO_DM_ID) {
+    PUG (ZonedDateTime time, String description, User mod, Guild guild, String name, int minutesWarning) {
         this.time = time;
         this.description = description;
         this.mod = mod;
@@ -39,31 +39,13 @@ class PUG {
 
         players.add(mod);
 
-        this.identifier = guild.getController().createRole().setName("[PUG] " + name).complete();
+        this.identifier = guild.getController().createRole()
+                .setName("[PUG] " + name)
+                .setMentionable(true)
+                .complete();
         guild.getController().addSingleRoleToMember(guild.getMember(mod), identifier).queue();
 
-        this.createReminder();
-
-        //announce in pug-pings
-        guild.getTextChannelById(announcementID).sendMessage(
-                "Attention @everyone:\n A new PUG, \"" + name + "\", has been created. Use !info " +
-                        name + ", [your time zone (optional if you already registered a time zone)] to get " +
-                        "information and timing in your time zone, and !join " + name + " or !watch " +
-                        name + " to register as a player or watcher."
-        ).queue();
-
-        //DM anyone without dont dm me as a role
-        for (Member member : guild.getMembers()) {
-            if (!member.getRoles().contains(guild.getRoleById(NO_DM_ID)) && !member.getUser().isBot()) {
-                member.getUser().openPrivateChannel().queue((PrivateChannel channel) -> channel.sendMessage(
-                        "A new PUG, \"" + name + "\", has been created. Use !info " + name + ", " +
-                                "[your time zone(optional if you already registered a time zone)] to get " +
-                                "information and timing in your time zone, and !join " + name +
-                                " or !watch " + name + " to register as a player or watcher. You can tun these messages " +
-                                "off by typing !dms off in any channel in Spark's Pugs."
-                ).queue());
-            }
-        }
+        this.scheduleEvents();
     }
 
     PUG(LinkedHashSet<User> players, LinkedHashSet<User> watchers, ZonedDateTime time, String description, User mod,
@@ -77,21 +59,25 @@ class PUG {
         this.name = name;
         this.minutesWarning = minutesWarning;
         this.identifier = identifier;
-        this.createReminder();
+        this.scheduleEvents();
     }
 
-    private void createReminder() {
+    private void scheduleEvents() {
+        if (this.reminder != null) {
+            this.reminder.cancel(false);
+        }
+
         ZonedDateTime now = ZonedDateTime.now();
-        long secondsDifference = ChronoUnit.SECONDS.between(now,
+        long reminderDiff = ChronoUnit.SECONDS.between(now,
                 time.withZoneSameInstant(now.getZone()).minusMinutes(minutesWarning));
 
-        if (secondsDifference > 0) {
+        if (reminderDiff > 0) {
             this.reminder = reminderService.schedule(() -> {
                 informAllOf(players, "The PUG you registered to play in, \"" + name + "\", is beginning in " +
                         minutesWarning + " minutes.");
                 informAllOf(watchers, "The PUG you registered to watch, \"" + name + "\", is beginning in " +
                         minutesWarning + " minutes.");
-            }, secondsDifference, TimeUnit.SECONDS);
+            }, reminderDiff, TimeUnit.SECONDS);
         }
     }
 
@@ -149,7 +135,7 @@ class PUG {
                 "Description:\n" + this.description;
     }
 
-    private String formatTime(ZoneId zone) {
+    String formatTime(ZoneId zone) {
         DateTimeFormatter formatter = DateTimeFormatter.ofPattern("h:mm a z M-d-y");
         ZonedDateTime zonedTime = time.withZoneSameInstant(zone);
         return formatter.format(zonedTime);
@@ -173,7 +159,11 @@ class PUG {
 
     // performs any necessary operations before removing this PUG
     void close() {
-        this.identifier.delete().queue();
+        try {
+            this.identifier.delete().queue();
+        } catch (Exception e) {
+
+        }
     }
 
     //inform watchers and players of this pug's cancellation
@@ -182,8 +172,11 @@ class PUG {
                 "has been cancelled.");
         this.informAllOf(watchers, "Unfortunately, the PUG you have been watching, \"" + name + "\", has " +
                 "been cancelled.");
+        try {
+            this.identifier.delete().queue();
+        } catch (Exception e) {
 
-        this.identifier.delete().queue();
+        }
     }
 
     /* changes this pug's time, and informs all players and watchers of the change
@@ -193,10 +186,7 @@ class PUG {
      */
     void reschedule(ZonedDateTime newTime) {
         this.time = newTime;
-        if (this.reminder != null) {
-            this.reminder.cancel(false);
-        }
-        this.createReminder();
+        this.scheduleEvents();
 
         this.informAllOf(players, "The PUG you are playing in, \"" + name + "\" has been rescheduled.\n" +
                 "Use !info " + name + " [your time zone (optional if you already registered a time zone)] to see " +

@@ -56,8 +56,37 @@ public class BotCore extends ListenerAdapter {
 
                 Guild guild = message.getGuild();
 
-                pugs.put(pugName, new PUG(pugTime, pugDescription, message.getAuthor(), guild, pugName, 5,
-                        announcementID, NO_DM_ID));
+                PUG newPug = new PUG(pugTime, pugDescription, message.getAuthor(), guild, pugName, 5);
+                pugs.put(pugName, newPug);
+
+                //announce in pug-pings
+                guild.getTextChannelById(announcementID).sendMessage(
+                        "Attention @everyone:\n A new PUG, \"" + pugName + "\", has been created. Use !info " +
+                                pugName + ", [your time zone (optional if you already registered a time zone)] to get " +
+                                "information and timing in your time zone, and !join " + pugName + " or !watch " +
+                                pugName + " to register as a player or watcher."
+                ).queue();
+
+                //DM anyone without don't dm me as a role
+                for (Member member : guild.getMembers()) {
+                    if (!member.getRoles().contains(guild.getRoleById(NO_DM_ID)) && !member.getUser().isBot()) {
+                        String time;
+                        if (timeZones.containsKey(member.getUser())) {
+                            time = newPug.formatTime(timeZones.get(member.getUser()));
+                        } else if (timeZones.containsKey(message.getAuthor())) {
+                            time = newPug.formatTime(timeZones.get(message.getAuthor()));
+                        } else {
+                            time = newPug.formatTime(ZoneId.of("GMT"));
+                        }
+                        member.getUser().openPrivateChannel().queue((PrivateChannel channel) -> channel.sendMessage(
+                                message.getMember().getEffectiveName() + " is hosting a PUG called " + pugName + " at " +
+                                        time + ". Use !join " + pugName + " to join. If you're unsure " +
+                                        "if you can play use !watch " + pugName + " to get updates on the PUG. Use !info " +
+                                        pugName + " for more information.\n" +
+                                        "\n Use !dms off in any channel of Spark's Pugs if you want me to stop DMing you about PUGs!"
+                        ).queue());
+                    }
+                }
 
                 return "PUG created successfully.";
             }
@@ -182,14 +211,14 @@ public class BotCore extends ListenerAdapter {
             }
         });
 
-        commands.put("list", new Command(false, false,
+        commands.put("list", new UserInfoCommand(false, false,
                 "!list [time zone (optional if you already registered a time zone)]",
                 "Lists all active pugs, with times converted to given time zone. " +
                         "For more info about a specific PUG, use !info.") {
             @Override
-            String processServerMessage(Scanner args, MessageReceivedEvent message) throws Exception {
+            String processUser(Scanner args, User user) throws Exception {
                 String list = "Here are the currently active PUGs:\n";
-                ZoneId zone = getZone(message.getAuthor(), args);
+                ZoneId zone = getZone(user, args);
 
                 for (PUG pug : pugs.values()) {
                     list += pug.briefInfo(zone) + "\n";
@@ -459,8 +488,18 @@ public class BotCore extends ListenerAdapter {
     }
 
     private String getPugName(Scanner args) throws Exception{
-        String pugName = args.next();
-        if (pugs.containsKey(pugName)) {
+        String givenName = args.next().toLowerCase();
+        String pugName = null;
+        for (String realPug : pugs.keySet()) {
+            if (realPug.toLowerCase().contains(givenName)) {
+                if (pugName == null || givenName.toLowerCase().equals(realPug.toLowerCase())) {
+                    pugName = realPug;
+                } else {
+                    throw new IllegalCommandArgumentException("More than one PUG matches that identifier.");
+                }
+            }
+        }
+        if (pugName != null) {
             return pugName;
         } else {
             throw new IllegalCommandArgumentException("No PUG with that name.");
