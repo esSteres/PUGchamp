@@ -1,6 +1,7 @@
 package bot;
 
 import net.dv8tion.jda.core.entities.Member;
+import net.dv8tion.jda.core.entities.PrivateChannel;
 import net.dv8tion.jda.core.entities.Role;
 import net.dv8tion.jda.core.events.message.MessageReceivedEvent;
 
@@ -21,14 +22,14 @@ abstract class Command {
     }
 
     //returns true if a mutating event occurred
-    boolean execute (Scanner args, MessageReceivedEvent message, String modID) {
+    boolean execute (Scanner args, MessageEvent message, String modID) {
         args.useDelimiter("\\s*,\\s*");
         args.skip("\\s*");
 
-        ExceptingBiFunction<Scanner, MessageReceivedEvent, String> processor;
+        ExceptingBiFunction<Scanner, MessageEvent, String> processor;
         if (message.getMember() != null) {
             if (this.MOD_ONLY && !this.authenticate(message.getMember(), modID)) {
-                message.getChannel().sendMessage("You don't have permission to do that.").queue();
+                message.getMessage().getChannel().sendMessage("You don't have permission to do that.").queue();
                 return false;
             }
             processor = this::processServerMessage;
@@ -39,7 +40,7 @@ abstract class Command {
         try {
             String reply = processor.apply(args, message);
             if (reply != null) {
-                message.getChannel().sendMessage(reply).queue();
+                message.getMessage().getChannel().sendMessage(reply).queue();
             }
             return MUTATOR;
         } catch (IllegalCommandArgumentException e) {
@@ -63,11 +64,11 @@ abstract class Command {
     }
 
     //you better override at least one of these, or else your command is pretty much useless
-    String processDM (Scanner args, MessageReceivedEvent message) throws Exception {
+    String processDM (Scanner args, MessageEvent message) throws Exception {
         return "You can't do that in DMs, use a server";
     }
 
-    String processServerMessage (Scanner args, MessageReceivedEvent message) throws Exception {
+    String processServerMessage (Scanner args, MessageEvent message) throws Exception {
         return "You can't do that in a server, use DMs";
     }
 
