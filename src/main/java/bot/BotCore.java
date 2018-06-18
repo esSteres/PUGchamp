@@ -282,22 +282,22 @@ public class BotCore extends ListenerAdapter {
             }
         });
 
-        commands.put("timezone", new Command(false, true,
-                "!timezone [time zone]",
+        commands.put("timezone", new UserInfoCommand(false, true,
+                "!timezone [optional: new time zone]",
                 "registers your time zone as the given time zone. Any commands that involve time will use the " +
                         "registered time zone if none is specified. !timezone on its own will display your currently " +
                         "registered time zone, if you have one.") {
             @Override
-            String processServerMessage(Scanner args, MessageEvent message) throws Exception {
+            String processUser(Scanner args, User user) throws Exception {
                 if (args.hasNext()) {
-                    timeZones.put(message.getAuthor(), parseZone(args.next()));
+                    timeZones.put(user, parseZone(args.next()));
                     return "Time zone registered successfully! Make sure to use -DT instead of -ST during daylight " +
                             "savings if you're in a country/state that uses it.";
                 } else {
                     DateTimeFormatter formatter = DateTimeFormatter.ofPattern("z");
-                    if (timeZones.containsKey(message.getAuthor())) {
+                    if (timeZones.containsKey(user)) {
                         String zone = formatter.format(ZonedDateTime.now().withZoneSameLocal(
-                                timeZones.get(message.getAuthor())));
+                                timeZones.get(user)));
                         return "Your time zone is currently " + zone;
                     } else {
                         return "You don't have a time zone registered. Do so now! It'll be helpful, trust me.";
