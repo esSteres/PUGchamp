@@ -5,6 +5,7 @@ import net.dv8tion.jda.core.entities.*;
 import net.dv8tion.jda.core.events.ReadyEvent;
 import net.dv8tion.jda.core.events.guild.member.GuildMemberJoinEvent;
 import net.dv8tion.jda.core.events.message.MessageReceivedEvent;
+import net.dv8tion.jda.core.events.message.MessageUpdateEvent;
 import net.dv8tion.jda.core.hooks.ListenerAdapter;
 import net.dv8tion.jda.core.managers.GuildController;
 
@@ -38,7 +39,7 @@ public class BotCore extends ListenerAdapter {
                         "if you already registered a time zone)] [optional: MM-DD-YYYY]. Date defaults to today if none " +
                         "present. Year may be left off, defaults to this year. Register your time zone with !timezone.") {
             @Override
-            String processServerMessage(Scanner args, MessageReceivedEvent message) throws Exception {
+            String processServerMessage(Scanner args, MessageEvent message) throws Exception {
                 String pugName = args.next();
 
                 if (pugs.containsKey(pugName)) {
@@ -54,7 +55,7 @@ public class BotCore extends ListenerAdapter {
                     pugDescription = args.nextLine();
                 }
 
-                Guild guild = message.getGuild();
+                Guild guild = message.getMessage().getGuild();
 
                 PUG newPug = new PUG(pugTime, pugDescription, message.getAuthor(), guild, pugName, 5);
                 pugs.put(pugName, newPug);
@@ -97,7 +98,7 @@ public class BotCore extends ListenerAdapter {
                 "Deletes the named PUG and informs its players and watchers of the cancellation. This action is " +
                         "irreversible and currently does not ask \"Are you sure?\" or anything, so be careful.") {
             @Override
-            String processServerMessage (Scanner args, MessageReceivedEvent message) throws Exception {
+            String processServerMessage (Scanner args, MessageEvent message) throws Exception {
                 pugs.remove(getPugName(args)).cancel();
                 return "PUG successfully canceled.";
             }
@@ -110,7 +111,7 @@ public class BotCore extends ListenerAdapter {
                         "time zone)] [optional: MM-DD-YYYY]. Date defaults to today if none present. Year may be left " +
                         "off, defaults to this year. Register your time zone with !timezone.") {
             @Override
-            String processServerMessage(Scanner args, MessageReceivedEvent message) throws Exception {
+            String processServerMessage(Scanner args, MessageEvent message) throws Exception {
                 String pugName = getPugName(args);
                 pugs.get(pugName).reschedule(parseTime(args.next(), message.getAuthor()));
                 return "PUG rescheduled successfully";
@@ -122,7 +123,7 @@ public class BotCore extends ListenerAdapter {
                 "Makes the named user the new mod of named PUG, or the command author if no user is named. " +
                         "The user must themselves be a mod.") {
             @Override
-            String processServerMessage(Scanner args, MessageReceivedEvent message) throws Exception {
+            String processServerMessage(Scanner args, MessageEvent message) throws Exception {
                 PUG pug = pugs.get(getPugName(args));
                 if (args.hasNext()) {
                     Member newMod = message.getMessage().getMentionedMembers().get(0);
@@ -144,7 +145,7 @@ public class BotCore extends ListenerAdapter {
                 "Closes and deletes the named PUG. Currently just acts like !cancel except it doesn't notify anyone, " +
                         "but more functionality will be added in the future, hopefully.") {
             @Override
-            String processServerMessage(Scanner args, MessageReceivedEvent message) throws Exception {
+            String processServerMessage(Scanner args, MessageEvent message) throws Exception {
                 pugs.remove(getPugName(args)).close();
                 return "PUG successfully closed. Thank you for using PUGchamp!";
             }
@@ -180,7 +181,7 @@ public class BotCore extends ListenerAdapter {
                 "!add @user, [PUG name]",
                 "Adds the named user as a player in the named PUG, as though they had typed !join [PUG name].") {
             @Override
-            String processServerMessage(Scanner args, MessageReceivedEvent message) throws Exception {
+            String processServerMessage(Scanner args, MessageEvent message) throws Exception {
                 Member player = message.getMessage().getMentionedMembers().get(0);
                 args.next();
                 pugs.get(getPugName(args)).registerPlayer(player.getUser());
@@ -203,7 +204,7 @@ public class BotCore extends ListenerAdapter {
                 "!remove @user, [PUG name]",
                 "Removes named user from the named PUG, as though they had typed !leave [PUG name].") {
             @Override
-            String processServerMessage(Scanner args, MessageReceivedEvent message) throws Exception {
+            String processServerMessage(Scanner args, MessageEvent message) throws Exception {
                 Member player = message.getMessage().getMentionedMembers().get(0);
                 args.next();
                 pugs.get(getPugName(args)).removePlayer(player.getUser());
@@ -261,11 +262,11 @@ public class BotCore extends ListenerAdapter {
                 "!DMs [on/off]",
                 "Adds or removes the @Don't DM me role to you.") {
             @Override
-            String processServerMessage(Scanner args, MessageReceivedEvent message) throws Exception {
+            String processServerMessage(Scanner args, MessageEvent message) throws Exception {
                 String state = args.next().toLowerCase();
 
-                Role noDMs = message.getGuild().getRoleById(NO_DM_ID);
-                GuildController controller = message.getGuild().getController();
+                Role noDMs = message.getMessage().getGuild().getRoleById(NO_DM_ID);
+                GuildController controller = message.getMessage().getGuild().getController();
 
                 if (state.equals("off")) {
                     controller.addSingleRoleToMember(message.getMember(), noDMs).queue();
@@ -281,36 +282,27 @@ public class BotCore extends ListenerAdapter {
             }
         });
 
-        commands.put("timezone", new Command(false, true,
-                "!timezone [time zone]",
+        commands.put("timezone", new UserInfoCommand(false, true,
+                "!timezone [optional: new time zone]",
                 "registers your time zone as the given time zone. Any commands that involve time will use the " +
                         "registered time zone if none is specified. !timezone on its own will display your currently " +
                         "registered time zone, if you have one.") {
             @Override
-            String processServerMessage(Scanner args, MessageReceivedEvent message) throws Exception {
+            String processUser(Scanner args, User user) throws Exception {
                 if (args.hasNext()) {
-                    timeZones.put(message.getAuthor(), parseZone(args.next()));
+                    timeZones.put(user, parseZone(args.next()));
                     return "Time zone registered successfully! Make sure to use -DT instead of -ST during daylight " +
                             "savings if you're in a country/state that uses it.";
                 } else {
                     DateTimeFormatter formatter = DateTimeFormatter.ofPattern("z");
-                    if (timeZones.containsKey(message.getAuthor())) {
+                    if (timeZones.containsKey(user)) {
                         String zone = formatter.format(ZonedDateTime.now().withZoneSameLocal(
-                                timeZones.get(message.getAuthor())));
+                                timeZones.get(user)));
                         return "Your time zone is currently " + zone;
                     } else {
                         return "You don't have a time zone registered. Do so now! It'll be helpful, trust me.";
                     }
                 }
-            }
-        });
-
-        commands.put("genji", new UserInfoCommand(false, false,
-                "!genji",
-                "Needs healing.") {
-            @Override
-            String processUser(Scanner args, User user) throws Exception {
-                return "I need healing!";
             }
         });
 
@@ -363,7 +355,16 @@ public class BotCore extends ListenerAdapter {
     }
 
     @Override
-    public void onMessageReceived(MessageReceivedEvent event) {
+    public void onMessageReceived (MessageReceivedEvent event) {
+        this.processMessage(new MessageEvent(event));
+    }
+
+    @Override
+    public void onMessageUpdate (MessageUpdateEvent event) {
+        this.processMessage(new MessageEvent(event));
+    }
+
+    private void processMessage (MessageEvent event) {
         if (event.getAuthor().isBot()) return;
         // We don't want to respond to other bot accounts, including us
 
@@ -382,7 +383,7 @@ public class BotCore extends ListenerAdapter {
             }
         }
         else {
-            event.getChannel().sendMessage("Command not recognized - use !help for a list of commands.").queue();
+            event.getMessage().getChannel().sendMessage("Command not recognized - use !help for a list of commands.").queue();
         }
     }
 
