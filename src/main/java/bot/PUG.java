@@ -158,7 +158,7 @@ class PUG {
     }
 
     // performs any necessary operations before removing this PUG
-    void close() {
+    void end() {
         try {
             this.identifier.delete().queue();
         } catch (Exception e) {
