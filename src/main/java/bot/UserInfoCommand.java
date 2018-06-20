@@ -1,7 +1,6 @@
 package bot;
 
 import net.dv8tion.jda.core.entities.User;
-import net.dv8tion.jda.core.events.message.MessageReceivedEvent;
 
 import java.util.Scanner;
 
@@ -13,12 +12,12 @@ abstract class UserInfoCommand extends Command {
     abstract String processUser (Scanner args, User user) throws Exception;
 
     @Override
-    String processServerMessage(Scanner args, MessageReceivedEvent message) throws Exception {
+    String processServerMessage(Scanner args, MessageEvent message) throws Exception {
         return this.processUser(args, message.getAuthor());
     }
 
     @Override
-    String processDM(Scanner args, MessageReceivedEvent message) throws Exception {
+    String processDM(Scanner args, MessageEvent message) throws Exception {
         return this.processUser(args, message.getAuthor());
     }
 }
