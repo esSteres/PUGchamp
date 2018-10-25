@@ -1,7 +1,9 @@
 package bot;
 
 import DiscordCMD.*;
+import net.dv8tion.jda.core.AccountType;
 import net.dv8tion.jda.core.JDA;
+import net.dv8tion.jda.core.JDABuilder;
 import net.dv8tion.jda.core.entities.*;
 import net.dv8tion.jda.core.events.ReadyEvent;
 import net.dv8tion.jda.core.events.guild.member.GuildMemberJoinEvent;
@@ -21,16 +23,18 @@ import java.util.Scanner;
 
 public class BotMain {
 
-    private static LinkedHashMap<String, PUG> pugs;
-    private static LinkedHashMap<User, ZoneId> timeZones;
+    private static Map<String, PUG> pugs;
+    private static Map<User, ZoneId> timeZones;
 
-    private static String backupFile = "backup.txt";
-    private static String announcementID = "";
-    private static String modID = "";
-    private static String noDMID = "";
+    private final static String backupFile = "backup.txt";
+    private final static String announcementID = "";
+    private final static String modID = "";
+    private final static String noDMID = "";
 
     public static void main (String... args) throws Exception {
-        BotCore bot = new BotCore("TOKEN") {
+        JDA api = new JDABuilder(AccountType.BOT).setToken("TOKEN").buildAsync();
+
+        BotCore bot = new BotCore(api) {
             @Override
             public void onGuildMemberJoin (GuildMemberJoinEvent event) {
                 event.getGuild().getSystemChannel().sendMessage("Hello " + event.getUser().getAsMention() + ", Welcome to " +
@@ -326,7 +330,7 @@ public class BotMain {
             }
         });
 
-        bot.start();
+        api.addEventListener(bot);
     }
 
     private static void backup () {
@@ -402,7 +406,7 @@ public class BotMain {
         }
     }
 
-    private static ZonedDateTime parseTime (String time, User u) throws IllegalArgumentException {
+    private static ZonedDateTime parseTime (String time, User u) throws IllegalCommandArgumentException {
         DateTimeFormatter formatter = DateTimeFormatter.ofPattern("h[h]:mm a[ z][ M-d][-yyyy]");
         TemporalAccessor parsedTime = formatter.parse(time.toUpperCase());
 
@@ -413,7 +417,7 @@ public class BotMain {
             if (timeZones.containsKey(u)) {
                 zone =  timeZones.get(u);
             } else {
-                throw new IllegalArgumentException("No time zone found - register one now with %prefix%timezone.");
+                throw new IllegalCommandArgumentException("No time zone found - register one now with %prefix%timezone.");
             }
         }
 
