@@ -8,7 +8,10 @@ import net.dv8tion.jda.core.entities.*;
 import net.dv8tion.jda.core.events.ReadyEvent;
 import net.dv8tion.jda.core.events.guild.member.GuildMemberJoinEvent;
 import net.dv8tion.jda.core.managers.GuildController;
+import org.json.JSONObject;
+import org.json.JSONTokener;
 
+import javax.swing.*;
 import java.io.*;
 import java.time.LocalDate;
 import java.time.LocalTime;
@@ -26,22 +29,50 @@ public class BotMain {
     private static Map<String, PUG> pugs;
     private static Map<User, ZoneId> timeZones;
 
-    private final static String backupFile = "backup.txt";
-    private final static String announcementID = "";
-    private final static String modID = "";
-    private final static String noDMID = "";
+    private static String backupFile = "backup.txt";
+    private static String announcementID;
+    private static String modID;
+    private static String noDMID;
+    private static String token;
 
     public static void main (String... args) throws Exception {
-        JDA api = new JDABuilder(AccountType.BOT).setToken("TOKEN").buildAsync();
+
+        String configPath = "config.json";
+        if (args.length > 0) {
+            configPath = args[0];
+        }
+
+        JSONObject configTemp = null;
+
+        try {
+            configTemp = new JSONObject(new JSONTokener(new FileInputStream(configPath)));
+            announcementID = configTemp.getString("announcementID");
+            modID = configTemp.getString("modID");
+            noDMID = configTemp.getString("noDMID");
+            token = configTemp.getString("token");
+        } catch (Exception e) {
+            JOptionPane.showMessageDialog(new JFrame(), "Could not read from config file.",
+                    "Error", JOptionPane.ERROR_MESSAGE);
+            System.exit(-1);
+        }
+
+        JSONObject config = new JSONObject(configTemp);
+
+        if (config.has("backupFile")) {
+            backupFile = config.getString("backupFile");
+        }
+
+        JDA api = new JDABuilder(AccountType.BOT).setToken(token).buildAsync();
 
         BotCore bot = new BotCore(api) {
             @Override
             public void onGuildMemberJoin (GuildMemberJoinEvent event) {
-                event.getGuild().getSystemChannel().sendMessage("Hello " + event.getUser().getAsMention() + ", Welcome to " +
-                        "Spark's PUGs! Make sure to read the rules in #read-me-first before anything else. And feel free to " +
-                        "message Spark or a Moderator to ask about PUGs!\n(Except DragonFire, He's only a mod because he " +
-                        "writes and maintains me, beep boop.)\nIf you want to learn more about how to properly use me, the " +
-                        "!help command will provide information on my functionality.").queue();
+                if (config.has("greeting")) {
+                    event.getGuild().getSystemChannel().sendMessage(
+                            config.getString("greeting").replace("%arrival%", event.getMember().getAsMention())
+                                    .replace("%prefix%", this.getPrefix())).queue();
+                }
+
             }
 
             @Override
@@ -395,12 +426,12 @@ public class BotMain {
         input.close();
     }
 
-    private static ZoneId parseZone (String zone) throws IllegalArgumentException {
+    private static ZoneId parseZone (String zone) throws IllegalCommandArgumentException {
         try {
             DateTimeFormatter zoneIntake = DateTimeFormatter.ofPattern("z");
             return ZoneId.from(zoneIntake.parse(zone.toUpperCase()));
         } catch (Exception e) {
-            throw new IllegalArgumentException("Incorrectly formatted time zone - remember to use " +
+            throw new IllegalCommandArgumentException("Incorrectly formatted time zone - remember to use " +
                     "the three-letter version, I need to be able to distinguish between daylight and " +
                     "standard times.");
         }
