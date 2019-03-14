@@ -1,6 +1,6 @@
 # PUGchamp
 
-A Discord bot for managing Overwatch pickup games (PUGs, hence the name) on a server a friend of mine runs. Uses JDA for interaction with Discord servers. Token obviously removed from public repo, I'm not that stupid.
+A Discord bot for managing Overwatch pickup games (PUGs, hence the name) on a server a friend of mine runs. Uses JDA for interaction with Discord servers. Token obviously removed from public repo.
 
 Want to join the server? https://discord.gg/ZvV6VCy
 
