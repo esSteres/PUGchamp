@@ -35,7 +35,9 @@ public class BotMain {
     private static String noDMID;
     private static String token;
 
-    public static void main (String... args) throws Exception {
+    private static BotCore bot;
+
+    public static void main(String... args) throws Exception {
 
         String configPath = "config.json";
         if (args.length > 0) {
@@ -64,9 +66,9 @@ public class BotMain {
 
         JDA api = new JDABuilder(AccountType.BOT).setToken(token).buildAsync();
 
-        BotCore bot = new BotCore(api) {
+        bot = new BotCore(api) {
             @Override
-            public void onGuildMemberJoin (GuildMemberJoinEvent event) {
+            public void onGuildMemberJoin(GuildMemberJoinEvent event) {
                 if (config.has("greeting")) {
                     event.getGuild().getSystemChannel().sendMessage(
                             config.getString("greeting").replace("%arrival%", event.getMember().getAsMention())
@@ -76,7 +78,7 @@ public class BotMain {
             }
 
             @Override
-            public void onReady (ReadyEvent event) {
+            public void onReady(ReadyEvent event) {
                 try {
                     readFromBackup(event.getJDA());
                 } catch (Exception e) {
@@ -86,6 +88,20 @@ public class BotMain {
         };
 
         PermissionLevel mod = new PermissionLevel(modID);
+
+        bot.registerCommand(new Command("prefix", "[new prefix]", "Changes the bot's prefix.", mod) {
+            @Override
+            protected String processMessage(Scanner args, MessageEvent messageEvent) throws IllegalCommandArgumentException {
+                if (args.hasNext()) {
+                    bot.setPrefix(args.next());
+                    backup();
+                    return "Prefix changed successfully. The prefix is now: " + bot.getPrefix();
+                } else {
+                    throw new IllegalCommandArgumentException("Cannot set prefix to nothing.");
+                }
+            }
+        });
+
 
         bot.registerCommand(new MessageTypeCommand("create", "[PUG name], [time], [optional: description]",
                 "Creates a pug at the given time. Time should be in the format HH:MM [am/pm] [Time Zone (optional " +
@@ -154,7 +170,7 @@ public class BotMain {
                         "irreversible and currently does not ask \"Are you sure?\" or anything, so be careful.",
                 mod) {
             @Override
-            protected String processServerMessage (Scanner args, MessageEvent message) throws IllegalCommandArgumentException {
+            protected String processServerMessage(Scanner args, MessageEvent message) throws IllegalCommandArgumentException {
                 pugs.remove(getPugName(args)).cancel();
                 backup();
                 return "PUG successfully canceled.";
@@ -198,7 +214,7 @@ public class BotMain {
             }
         });
 
-        bot.registerCommand(new MessageTypeCommand("end","[PUG name]",
+        bot.registerCommand(new MessageTypeCommand("end", "[PUG name]",
                 "Ends and deletes the named PUG. Currently just acts like %prefix%cancel except it doesn't notify anyone, " +
                         "but more functionality will be added in the future, hopefully.", mod) {
             @Override
@@ -209,13 +225,13 @@ public class BotMain {
             }
         });
 
-        bot.registerCommand(new Command("watch","[PUG name]",
+        bot.registerCommand(new Command("watch", "[PUG name]",
                 "Registers you as a watcher of the named pug. You will get updates about the PUG, but will not " +
                         "count toward the required 12 players. Use this if you are interested in playing but aren't " +
                         "sure if you can make it, or could play if the time changes slightly, etc. If you are " +
                         "currently a player in the pug, you will no longer be one.", PermissionLevel.EVERYONE) {
             @Override
-            protected String processMessage (Scanner args, MessageEvent message) throws IllegalCommandArgumentException {
+            protected String processMessage(Scanner args, MessageEvent message) throws IllegalCommandArgumentException {
                 String pugName = getPugName(args);
                 pugs.get(pugName).registerWatcher(message.getAuthor());
                 backup();
@@ -223,11 +239,11 @@ public class BotMain {
             }
         });
 
-        bot.registerCommand(new Command("join","[PUG name]",
+        bot.registerCommand(new Command("join", "[PUG name]",
                 "Registers you as a player in the named PUG. If you are currently a watcher, you will no longer " +
                         "be one.", PermissionLevel.EVERYONE) {
             @Override
-            protected String processMessage (Scanner args, MessageEvent message) throws IllegalCommandArgumentException {
+            protected String processMessage(Scanner args, MessageEvent message) throws IllegalCommandArgumentException {
                 String pugName = getPugName(args);
                 pugs.get(pugName).registerPlayer(message.getAuthor());
                 backup();
@@ -235,7 +251,7 @@ public class BotMain {
             }
         });
 
-        bot.registerCommand(new MessageTypeCommand("add","@user, [PUG name]",
+        bot.registerCommand(new MessageTypeCommand("add", "@user, [PUG name]",
                 "Adds the mentioned user as a player in the named PUG, as though they had typed %prefix%join [PUG name].",
                 mod) {
             @Override
@@ -248,18 +264,18 @@ public class BotMain {
             }
         });
 
-        bot.registerCommand(new Command("leave","[PUG name]",
+        bot.registerCommand(new Command("leave", "[PUG name]",
                 "Removes you from the named PUG. You will no longer get updates, and will no longer count toward " +
                         "the required 12 players if you were a player.", PermissionLevel.EVERYONE) {
             @Override
-            protected String processMessage (Scanner args, MessageEvent message) throws IllegalCommandArgumentException {
+            protected String processMessage(Scanner args, MessageEvent message) throws IllegalCommandArgumentException {
                 pugs.get(getPugName(args)).removePlayer(message.getAuthor());
                 backup();
                 return "Left PUG successfully.";
             }
         });
 
-        bot.registerCommand(new MessageTypeCommand("remove","@user, [PUG name]",
+        bot.registerCommand(new MessageTypeCommand("remove", "@user, [PUG name]",
                 "Removes named user from the named PUG, as though they had typed %prefix%leave [PUG name].", mod) {
             @Override
             protected String processServerMessage(Scanner args, MessageEvent message) throws IllegalCommandArgumentException {
@@ -271,11 +287,11 @@ public class BotMain {
             }
         });
 
-        bot.registerCommand(new Command("list","[time zone (optional if you already registered a time zone)]",
+        bot.registerCommand(new Command("list", "[time zone (optional if you already registered a time zone)]",
                 "Lists all active pugs, with times converted to given time zone. " +
                         "For more info about a specific PUG, use %prefix%info.", PermissionLevel.EVERYONE) {
             @Override
-            protected String processMessage (Scanner args, MessageEvent message) throws IllegalCommandArgumentException {
+            protected String processMessage(Scanner args, MessageEvent message) throws IllegalCommandArgumentException {
                 String list = "Here are the currently active PUGs:\n";
                 ZoneId zone = getZone(message.getAuthor(), args);
 
@@ -287,17 +303,17 @@ public class BotMain {
             }
         });
 
-        bot.registerCommand(new Command("info","[PUG name], [time zone (optional if you already registered a time zone)]",
+        bot.registerCommand(new Command("info", "[PUG name], [time zone (optional if you already registered a time zone)]",
                 "returns info about named pug, with times in given time zone - " +
                         "more detailed than the data from %prefix%list", PermissionLevel.EVERYONE) {
             @Override
-            protected String processMessage (Scanner args, MessageEvent message) throws IllegalCommandArgumentException {
+            protected String processMessage(Scanner args, MessageEvent message) throws IllegalCommandArgumentException {
                 String pug = getPugName(args);
                 return pugs.get(pug).fullInfo(getZone(message.getAuthor(), args));
             }
         });
 
-        bot.registerCommand(new Command("players","[PUG name]",
+        bot.registerCommand(new Command("players", "[PUG name]",
                 "Returns a list of people playing in named PUG.", PermissionLevel.EVERYONE) {
             @Override
             protected String processMessage(Scanner args, MessageEvent message) throws IllegalCommandArgumentException {
@@ -305,7 +321,7 @@ public class BotMain {
             }
         });
 
-        bot.registerCommand(new Command("watchers","[PUG name]",
+        bot.registerCommand(new Command("watchers", "[PUG name]",
                 "Returns a list of people watching the named PUG.", PermissionLevel.EVERYONE) {
             @Override
             protected String processMessage(Scanner args, MessageEvent message) throws IllegalCommandArgumentException {
@@ -313,7 +329,7 @@ public class BotMain {
             }
         });
 
-        bot.registerCommand(new MessageTypeCommand("dms","[on/off]",
+        bot.registerCommand(new MessageTypeCommand("dms", "[on/off]",
                 "Adds or removes the @Don't DM me role to you.", PermissionLevel.EVERYONE) {
             @Override
             protected String processServerMessage(Scanner args, MessageEvent message) throws IllegalCommandArgumentException {
@@ -324,11 +340,9 @@ public class BotMain {
 
                 if (state.equals("off")) {
                     controller.addSingleRoleToMember(message.getMember(), noDMs).queue();
-                }
-                else if (state.equals("on")) {
+                } else if (state.equals("on")) {
                     controller.removeSingleRoleFromMember(message.getMember(), noDMs).queue();
-                }
-                else {
+                } else {
                     return this.getUsage(bot.getPrefix());
                 }
 
@@ -336,7 +350,7 @@ public class BotMain {
             }
         });
 
-        bot.registerCommand(new Command("timezone","[optional: new time zone]",
+        bot.registerCommand(new Command("timezone", "[optional: new time zone]",
                 "registers your time zone as the given time zone. Any commands that involve time will use the " +
                         "registered time zone if none is specified. %prefix%timezone on its own will display your currently " +
                         "registered time zone, if you have one.", PermissionLevel.EVERYONE) {
@@ -364,7 +378,7 @@ public class BotMain {
         api.addEventListener(bot);
     }
 
-    private static void backup () {
+    private static void backup() {
         try {
             File backup = new File(backupFile);
             ObjectOutputStream output = new ObjectOutputStream(new FileOutputStream(backup));
@@ -379,6 +393,7 @@ public class BotMain {
                 sTimeZones.put(userEntry.getKey().getId(), userEntry.getValue());
             }
 
+            output.writeObject(bot.getPrefix());
             output.writeObject(spugs);
             output.writeObject(sTimeZones);
             output.close();
@@ -388,12 +403,20 @@ public class BotMain {
         }
     }
 
-    private static void readFromBackup (JDA api) throws Exception {
+    private static void readFromBackup(JDA api) throws Exception {
         pugs = new LinkedHashMap<>();
         timeZones = new LinkedHashMap<>();
 
-        File backup = new File (backupFile);
+        File backup = new File(backupFile);
         ObjectInputStream input = new ObjectInputStream(new FileInputStream(backup));
+
+        try {
+            String prefix = (String) input.readObject();
+            bot.setPrefix(prefix);
+        } catch (Exception e) {
+            e.printStackTrace();
+            System.out.println("WARNING: Could not read prefix data!");
+        }
 
         try {
             LinkedHashMap<String, SerializablePUG> spugs = (LinkedHashMap<String, SerializablePUG>) input.readObject();
@@ -426,7 +449,7 @@ public class BotMain {
         input.close();
     }
 
-    private static ZoneId parseZone (String zone) throws IllegalCommandArgumentException {
+    private static ZoneId parseZone(String zone) throws IllegalCommandArgumentException {
         try {
             DateTimeFormatter zoneIntake = DateTimeFormatter.ofPattern("z");
             return ZoneId.from(zoneIntake.parse(zone.toUpperCase()));
@@ -437,7 +460,7 @@ public class BotMain {
         }
     }
 
-    private static ZonedDateTime parseTime (String time, User u) throws IllegalCommandArgumentException {
+    private static ZonedDateTime parseTime(String time, User u) throws IllegalCommandArgumentException {
         DateTimeFormatter formatter = DateTimeFormatter.ofPattern("h[h]:mm a[ z][ M-d][-yyyy]");
         TemporalAccessor parsedTime = formatter.parse(time.toUpperCase());
 
@@ -446,7 +469,7 @@ public class BotMain {
             zone = ZoneId.from(parsedTime);
         } else {
             if (timeZones.containsKey(u)) {
-                zone =  timeZones.get(u);
+                zone = timeZones.get(u);
             } else {
                 throw new IllegalCommandArgumentException("No time zone found - register one now with %prefix%timezone.");
             }
@@ -484,7 +507,7 @@ public class BotMain {
         }
     }
 
-    private static ZoneId getZone (User user, Scanner args) throws IllegalCommandArgumentException {
+    private static ZoneId getZone(User user, Scanner args) throws IllegalCommandArgumentException {
         if (args.hasNext()) {
             return parseZone(args.next());
         } else {
